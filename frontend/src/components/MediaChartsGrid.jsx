@@ -139,7 +139,7 @@ export default function MediaChartsGrid({ stats }) {
           const { data, options } = buildChartProps(key);
           
           return (
-            <div key={key} className="glass-panel p-5 rounded-xl border border-white/5 hover:border-white/10 transition-colors group cursor-crosshair">
+            <div key={key} className="glass-panel p-5 rounded-xl border border-white/5 hover:border-ember/20 hover:shadow-[0_0_25px_rgba(232,96,46,0.08)] transition-all duration-500 group cursor-crosshair">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-black/40 border border-white/5" style={{ color: config.color }}>

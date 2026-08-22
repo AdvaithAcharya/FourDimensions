@@ -31,7 +31,7 @@ async def trigger_multimedia_attack():
     
     async with httpx.AsyncClient(timeout=30.0) as client:
         print("Sending massive multimedia payload to Gateway...")
-        response = await client.post("http://127.0.0.1:8001/v1/chat/completions", json=payload)
+        response = await client.post("http://127.0.0.1:8000/v1/chat/completions", json=payload)
         
         print(f"\nStatus: {response.status_code}")
         print("Response JSON:")
@@ -54,7 +54,7 @@ async def trigger_multimedia_attack():
             "user_id": "legit_user_02"
         }
         
-        async with client.stream("POST", "http://127.0.0.1:8001/v1/chat/completions", json=legit_payload) as stream_resp:
+        async with client.stream("POST", "http://127.0.0.1:8000/v1/chat/completions", json=legit_payload) as stream_resp:
             print(f"\nStatus: {stream_resp.status_code}")
             print("Streaming legit response:")
             async for chunk in stream_resp.aiter_text():

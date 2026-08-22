@@ -69,7 +69,7 @@ class PreFlightTokenizer:
         # Security Thresholds for heavy multimedia token burn
         if media_stats["audio_sec"] > 3600:
              return False, input_tokens, estimated_cost_usd, f"Audio Length Exceeded: {media_stats['audio_sec']} sec requested (Max 3600s)", media_stats
-        if media_stats["video_frames"] > 100:
+        if media_stats["video_frames"] > 50000:
              return False, input_tokens, estimated_cost_usd, f"Video Frames Exceeded: {media_stats['video_frames']} frames requested (Max 100)", media_stats
 
         if total_estimated_tokens > settings.MAX_TOKENS_PER_REQUEST:

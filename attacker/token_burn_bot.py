@@ -26,7 +26,7 @@ async def simulate_payload_complexity_attack():
     start = time.time()
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
-            response = await client.post(GATEWAY_URL, json=payload)
+            response = await client.post("http://127.0.0.1:8000/v1/chat/completions", json=payload)
             elapsed_ms = (time.time() - start) * 1000
             print(f"Gateway HTTP Response Status: {response.status_code}")
             print(f"Pre-Flight Interception Latency: {elapsed_ms:.2f} ms")

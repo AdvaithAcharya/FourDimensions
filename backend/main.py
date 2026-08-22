@@ -263,12 +263,15 @@ async def chat_completions_proxy(request: Request):
                     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                     json=payload,
                     headers=headers,
-                    timeout=30.0
+                    timeout=120.0
                 ) as response:
                     async for chunk in response.aiter_text():
                         if chunk:
                             total_output_chars += len(chunk)
-                            yield chunk
+                            if not chunk.lstrip().startswith("data:"):
+                                yield f"data: {json.dumps({'choices': [{'delta': {'content': f'[UPSTREAM ERROR]: {chunk.strip()}'}}]})}\n\n"
+                            else:
+                                yield chunk
             
             # Calculate actual cost post-generation (estimating token mapping from SSE string length)
             actual_output_tokens = total_output_chars // 15
@@ -357,4 +360,53 @@ async def get_user_budget_api(user_id: str, currency: str = "USD"):
         "daily_budget_formatted": f"{symbol}{daily_conv:,.2f}",
         "current_spent_formatted": f"{symbol}{spent_conv:,.4f}",
         "remaining_budget_formatted": f"{symbol}{max(0, daily_conv - spent_conv):,.4f}"
+    }
+
+@app.get("/api/company/analytics")
+async def get_company_analytics(currency: str = "USD"):
+    from backend.db import get_system_stats, get_all_users_budgets
+    
+    # 1. Get global stats
+    raw_stats = await get_system_stats()
+    curr = currency.upper()
+    symbol = currency_service.currency_symbols.get(curr, "$")
+    
+    total_saved_usd = raw_stats["total_cost_saved_usd"]
+    converted_savings = currency_service.convert_from_usd(total_saved_usd, curr)
+    
+    # 2. Get all users
+    users = await get_all_users_budgets()
+    
+    active_users = 0
+    blocked_users = 0
+    formatted_users = []
+    
+    for u in users:
+        daily_usd = u.get("daily_budget_usd", 0.50)
+        spent_usd = u.get("current_spent_usd", 0.0)
+        
+        is_blocked = spent_usd >= daily_usd
+        if is_blocked:
+            blocked_users += 1
+        else:
+            active_users += 1
+            
+        daily_conv = currency_service.convert_from_usd(daily_usd, curr)
+        spent_conv = currency_service.convert_from_usd(spent_usd, curr)
+        
+        u_copy = dict(u)
+        u_copy["status"] = "BLOCKED" if is_blocked else "ACTIVE"
+        u_copy["daily_budget_formatted"] = f"{symbol}{daily_conv:,.2f}"
+        u_copy["current_spent_formatted"] = f"{symbol}{spent_conv:,.4f}"
+        u_copy["percent_used"] = min(100, (spent_usd / daily_usd) * 100) if daily_usd > 0 else 100
+        formatted_users.append(u_copy)
+        
+    return {
+        "company_total_saved_formatted": f"{symbol}{converted_savings:,.2f}",
+        "company_total_tokens_processed": raw_stats["total_tokens_processed"],
+        "company_total_tokens_blocked": raw_stats["total_tokens_blocked"],
+        "active_tenants": active_users,
+        "blocked_tenants": blocked_users,
+        "currency_symbol": symbol,
+        "tenants": formatted_users
     }

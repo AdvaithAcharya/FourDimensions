@@ -146,6 +146,32 @@ async def get_user_budget_db(user_id: str) -> Dict[str, Any]:
         }
     return in_memory_budgets[user_id]
 
+async def get_all_users_budgets() -> List[Dict[str, Any]]:
+    if db is not None:
+        try:
+            cursor = db.user_budgets.find({}, {'_id': 0})
+            users = await cursor.to_list(length=1000)
+            if users:
+                return users
+        except Exception:
+            pass
+            
+    # Fallback to in-memory
+    # Let's ensure the hardcoded ones exist in memory if they don't already
+    for uid in ["user_freemium_01", "legit_user_02", "attacker_bot_02"]:
+        if uid not in in_memory_budgets:
+             in_memory_budgets[uid] = {
+                "user_id": uid,
+                "tier": "freemium",
+                "daily_budget_usd": settings.DEFAULT_DAILY_BUDGET_USD,
+                "current_spent_usd": 0.0,
+                "requests_today": 0,
+                "blocked_attacks": 0,
+                "last_reset": time.time()
+            }
+            
+    return list(in_memory_budgets.values())
+
 async def update_user_budget_db(user_id: str, added_spent_usd: float, request_increment: int = 1, attack_increment: int = 0):
     user_data = await get_user_budget_db(user_id)
     user_data["current_spent_usd"] += added_spent_usd

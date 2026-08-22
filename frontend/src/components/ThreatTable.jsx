@@ -49,7 +49,7 @@ export default function ThreatTable({ logs }) {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-gray-300">{log.user_id}</td>
-                <td className="px-6 py-4 text-cyber-green font-bold">
+                <td className="px-6 py-4 text-ember font-bold">
                   {log.cost_saved_display}
                 </td>
                 <td className="px-6 py-4 text-gray-400 text-xs max-w-md truncate" title={log.detail}>
