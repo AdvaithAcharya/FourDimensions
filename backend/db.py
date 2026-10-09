@@ -6,7 +6,7 @@ from backend.config import settings
 from backend.currency import currency_service
 from backend.pricing import pricing_engine
 
-logger = logging.getLogger("scryptic.db")
+logger = logging.getLogger("krypton.db")
 logging.basicConfig(level=logging.INFO)
 
 # In-memory resilient stores

@@ -1,4 +1,4 @@
-# Scryptic: Enterprise LLM FinOps Observability & Attribution Gateway
+# Krypton: Enterprise LLM FinOps Observability & Attribution Gateway
 ### Commvault Challenge PS-404 · Solution Architecture & Delivery
 
 [![Audit Status](https://img.shields.io/badge/Reconciliation%20Audit-PASSED%20(100%25)-emerald.svg)](#-deliverable-4-mathematical-reconciliation--audit)
@@ -12,7 +12,7 @@
 
 Organizations struggle to identify which teams, features, models, or users consume the most LLM tokens and incur the highest cloud API costs. 
 
-**Scryptic** is an enterprise-grade LLM FinOps proxy and observability gateway engineered for **Commvault Challenge PS-404**. It intercepts LLM API traffic, dynamically extracts multi-tenant attribution metadata from HTTP headers or JSON request bodies, evaluates exact token costs using a configurable multi-model pricing catalog with **zero floating-point drift (`Decimal`)**, and streams real-time cost intelligence to an interactive dashboard.
+**Krypton** is an enterprise-grade LLM FinOps proxy and observability gateway engineered for **Commvault Challenge PS-404**. It intercepts LLM API traffic, dynamically extracts multi-tenant attribution metadata from HTTP headers or JSON request bodies, evaluates exact token costs using a configurable multi-model pricing catalog with **zero floating-point drift (`Decimal`)**, and streams real-time cost intelligence to an interactive dashboard.
 
 ---
 
@@ -65,7 +65,7 @@ Before running the project, ensure you have the following installed on your mach
 
 ### 1. Backend Gateway Setup & Startup
 
-1. Open a terminal in the root repository directory (`d:\Scryptic`):
+1. Open a terminal in the root repository directory:
 2. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
@@ -140,7 +140,7 @@ Before running the project, ensure you have the following installed on your mach
 
 ## 🎯 Commvault PS-404 Deliverables Alignment
 
-| PS-404 Deliverable | Scryptic Implementation | Architectural Highlight |
+| PS-404 Deliverable | Krypton Implementation | Architectural Highlight |
 | :--- | :--- | :--- |
 | **1. Request Logger or Proxy with Configurable Attribution** | Transparent OpenAI-compatible `/v1/chat/completions` proxy with dual header & JSON-body attribution parser (`X-Team`, `X-Feature`, `X-User-ID`, `attribution: {...}`). | Zero-latency asynchronous ingestion with background ledger commit. |
 | **2. Cost & Usage Calculations via Pricing Table** | `backend/pricing.py` Decimal accounting engine mapping frontier models (`gpt-4o`, `claude-3-5-sonnet`, `gemini-1.5-pro`, `gpt-4o-mini`, etc.) down to 8 decimal places. | Constant time $\mathcal{O}(1)$ pricing lookup and arithmetic with zero representation drift. |
@@ -243,7 +243,7 @@ Rates are defined per **1,000,000 tokens** (with per-1k conversions exposed):
 
 ## 📊 Dataset Ingestion & 4-Dimensional Analysis Engine
 
-Scryptic includes a high-performance offline and batch telemetry ingestion engine designed for bulk audits, historical backfills, and multi-dimensional attribution.
+Krypton includes a high-performance offline and batch telemetry ingestion engine designed for bulk audits, historical backfills, and multi-dimensional attribution.
 
 ### Features:
 1. **Multi-Format Ingestion**: Supports `.zip` archives (extracts and analyzes embedded CSV or JSONL automatically), as well as direct `.csv`, `.jsonl`, and `.json` files.

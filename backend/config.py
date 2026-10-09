@@ -6,7 +6,7 @@ from pydantic import BaseModel
 load_dotenv()
 
 class Settings(BaseModel):
-    PROJECT_NAME: str = "Scryptic LLM FinOps Dashboard"
+    PROJECT_NAME: str = "Krypton LLM FinOps Dashboard"
     VERSION: str = "2.0.0"
     API_PREFIX: str = "/api"
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")

@@ -109,7 +109,7 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
         </div>
         <div className="flex flex-col">
           <h1 className="font-display font-bold text-2xl tracking-[0.02em] leading-none bg-gradient-to-r from-white via-ember to-white bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-flow">
-            SCRYPTIC <span className="text-white/40">//</span> FINOPS
+            KRYPTON <span className="text-white/40">//</span> FINOPS
           </h1>
           <span className="text-emerald-400 text-xs font-mono uppercase tracking-widest mt-1 flex items-center gap-2">
             <span className="relative flex h-2 w-2">

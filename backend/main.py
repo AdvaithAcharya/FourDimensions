@@ -34,7 +34,7 @@ from backend.db import (
     clear_all_data, in_memory_logs, is_mongodb_connected
 )
 
-logger = logging.getLogger("scryptic.gateway")
+logger = logging.getLogger("krypton.gateway")
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
@@ -88,7 +88,7 @@ app.add_middleware(
 async def startup_event():
     await init_databases()
     asyncio.create_task(currency_service.refresh_rates())
-    logger.info("Scryptic LLM FinOps Observability Gateway operational!")
+    logger.info("Krypton LLM FinOps Observability Gateway operational!")
 
 @app.get("/")
 async def root():

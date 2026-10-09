@@ -57,7 +57,7 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      // 2. We use fetch to stream Server-Sent Events from Scryptic FinOps Gateway
+      // 2. We use fetch to stream Server-Sent Events from Krypton FinOps Gateway
       const response = await fetch("http://127.0.0.1:8000/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -159,7 +159,7 @@ export default function App() {
           <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
             <Bot size={64} className="mb-4 text-cyber-green" />
             <h2 className="text-2xl font-display mb-2">Hello, I'm Gemi.</h2>
-            <p className="font-mono text-sm max-w-md">I am connected to the Krypton Active-Defense Gateway. Ask me anything or upload an image to test the multimodal proxy!</p>
+            <p className="font-mono text-sm max-w-md">I am connected to the Krypton LLM FinOps Gateway. Ask me anything or upload an image to test the multimodal proxy!</p>
           </div>
         )}
 
@@ -248,7 +248,7 @@ export default function App() {
             <Send size={20} />
           </button>
         </div>
-        <p className="text-center font-mono text-[10px] text-gray-600 mt-3">Gemi connects directly to the local Krypton Active-Defense Gateway (Port 8000).</p>
+        <p className="text-center font-mono text-[10px] text-gray-600 mt-3">Gemi connects directly to the local Krypton LLM FinOps Gateway (Port 8000).</p>
       </footer>
     </div>
   );

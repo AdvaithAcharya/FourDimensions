@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Tuple, Optional
 import logging
 
-logger = logging.getLogger("scryptic.pricing")
+logger = logging.getLogger("krypton.pricing")
 
 # Default Enterprise Pricing Table (Rates per 1,000,000 Tokens)
 # All rates are specified as Decimal strings to eliminate floating-point representation drift.
