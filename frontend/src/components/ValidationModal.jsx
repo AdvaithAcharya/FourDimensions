@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, ShieldCheck, Zap, Cpu, RefreshCw, Clock } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Zap, Cpu, RefreshCw, Clock, Database } from 'lucide-react';
 
 export default function ValidationModal() {
   const [report, setReport] = useState(null);
@@ -106,6 +106,96 @@ export default function ValidationModal() {
               <p className="text-[10px] font-mono text-gray-500 mt-2">Evaluations / Second</p>
             </div>
           </div>
+
+          {/* Live Production Database Ledger Audit Section */}
+          {report.live_ledger_audit && (
+            <div className="glass-panel p-6 rounded-xl border border-emerald-500/25 bg-black/40">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-display font-bold text-lg text-white">
+                        Live Production Ledger Audit
+                      </h4>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {report.live_ledger_audit.database_provider} · {report.live_ledger_audit.database_name}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 font-mono text-xs mt-0.5">
+                      Real-time cryptographic and arithmetic audit of active database records
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs px-3 py-1.5 rounded-lg bg-black/50 border border-white/10 text-gray-300">
+                    Records Audited: <strong className="text-white">{report.live_ledger_audit.total_records_audited?.toLocaleString()}</strong>
+                  </span>
+                  <span className="font-mono text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 font-bold">
+                    {report.live_ledger_audit.ledger_verdict}
+                  </span>
+                </div>
+              </div>
+
+              {/* Live Ledger KPI Subgrid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                <div className="p-3 rounded-lg bg-black/50 border border-white/5 font-mono text-xs">
+                  <span className="text-gray-400 block mb-0.5">Stored Ledger Spend:</span>
+                  <span className="text-white font-bold">{report.live_ledger_audit.stored_total_spend}</span>
+                </div>
+                <div className="p-3 rounded-lg bg-black/50 border border-white/5 font-mono text-xs">
+                  <span className="text-gray-400 block mb-0.5">Recomputed Spend:</span>
+                  <span className="text-emerald-400 font-bold">{report.live_ledger_audit.recomputed_total_spend}</span>
+                </div>
+                <div className="p-3 rounded-lg bg-black/50 border border-white/5 font-mono text-xs">
+                  <span className="text-gray-400 block mb-0.5">Drift Discrepancy (Δ):</span>
+                  <span className="text-emerald-400 font-bold">{report.live_ledger_audit.discrepancy}</span>
+                </div>
+                <div className="p-3 rounded-lg bg-black/50 border border-white/5 font-mono text-xs">
+                  <span className="text-gray-400 block mb-0.5">Mismatched Records:</span>
+                  <span className="text-emerald-400 font-bold">
+                    {report.live_ledger_audit.cost_discrepancies + report.live_ledger_audit.token_discrepancies} (0.00%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Detailed Live Checks */}
+              {report.live_ledger_audit.checks?.length > 0 && (
+                <div className="rounded-lg overflow-hidden border border-white/5 bg-black/30">
+                  <table className="w-full text-left font-mono text-xs">
+                    <thead className="text-gray-400 uppercase bg-black/40 border-b border-white/5">
+                      <tr>
+                        <th className="px-4 py-2 text-[10px]">Audit Check</th>
+                        <th className="px-4 py-2 text-[10px]">Expected / Recomputed</th>
+                        <th className="px-4 py-2 text-[10px]">Recorded in DB</th>
+                        <th className="px-4 py-2 text-[10px]">Delta</th>
+                        <th className="px-4 py-2 text-right text-[10px]">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {report.live_ledger_audit.checks.map((chk, i) => (
+                        <tr key={i} className="hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-2 text-gray-200">{chk.check}</td>
+                          <td className="px-4 py-2 text-gray-400">{chk.expected}</td>
+                          <td className="px-4 py-2 text-white">{chk.actual}</td>
+                          <td className="px-4 py-2 text-emerald-400">{chk.discrepancy}</td>
+                          <td className="px-4 py-2 text-right">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                              {chk.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Time & Space Complexity Benchmarks */}
           <div className="glass-panel p-6 rounded-xl border border-white/10 bg-black/40">

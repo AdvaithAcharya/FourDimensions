@@ -405,6 +405,7 @@ async def simulate_traffic_burst(count: int = Query(5, ge=1, le=50)):
             "status_code": 200
         }
         await save_usage_record(record)
+    return {"status": "SUCCESS", "simulated_count": count}
 
 @app.post("/api/finops/reset")
 async def reset_metrics():

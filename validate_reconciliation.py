@@ -17,6 +17,8 @@ async def main():
     print(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     print("Auditing Decimal Accounting Engine against Known Expected Values...\n")
 
+    from backend.db import init_databases
+    await init_databases()
     report = await FinOpsValidator.run_audit_suite()
 
     print(f"{'METRIC':<28} | {'EXPECTED':<15} | {'ACTUAL':<15} | {'DIFF':<10} | {'STATUS'}")
@@ -31,10 +33,28 @@ async def main():
         print(f"{metric:<28} | {exp:<15} | {act:<15} | {diff:<10} | [{status}]")
 
     print("-" * 78)
-    print(f"\nAUDIT VERDICT: {report['reconciliation_verdict']}")
-    print(f"ERROR RATE:    {report['error_rate_pct']:.6f}%")
-    print(f"AUDIT LATENCY: {report['verification_latency_ms']} ms")
-    
+    print(f"\nTHEORETICAL BENCHMARK VERDICT: {report['reconciliation_verdict']}")
+    print(f"ERROR RATE:                   {report['error_rate_pct']:.6f}%")
+    print(f"AUDIT LATENCY:                {report['verification_latency_ms']} ms")
+
+    live = report.get("live_ledger_audit", {})
+    if live:
+        print("\n" + "=" * 78)
+        print("  LIVE PRODUCTION DATABASE LEDGER AUDIT (MongoDB Atlas / Active Ledger)")
+        print("=" * 78)
+        print(f"• Database Provider:             {live.get('database_provider')} ({live.get('database_name')})")
+        print(f"• Total Live Records Audited:    {live.get('total_records_audited'):,}")
+        print(f"• Stored Ledger Spend:           {live.get('stored_total_spend')}")
+        print(f"• Recomputed Catalog Spend:      {live.get('recomputed_total_spend')}")
+        print(f"• Ledger Spend Discrepancy:      {live.get('discrepancy')}")
+        print(f"• Token Summation Mismatches:    {live.get('token_discrepancies')}")
+        print(f"• Price Drift Mismatches:        {live.get('cost_discrepancies')}")
+        print(f"• Live Ledger Verdict:           {live.get('ledger_verdict')}")
+        if live.get("checks"):
+            print("\n  Live Ledger Detailed Checks:")
+            for chk in live["checks"]:
+                print(f"  - {chk['check']}: Exp={chk['expected']} | Act={chk['actual']} | Diff={chk['discrepancy']} [{chk['status']}]")
+
     print("\n" + "=" * 78)
     print("  PERFORMANCE & COMPLEXITY BENCHMARKS")
     print("=" * 78)

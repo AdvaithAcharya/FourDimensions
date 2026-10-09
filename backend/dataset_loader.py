@@ -93,6 +93,8 @@ class DatasetAnalysisEngine:
         attrib_counts: Dict[str, int] = {"complete": 0, "partial": 0, "unattributed": 0}
 
         sample_preview = []
+        component_data_found = False
+        row_formula_mismatches = 0
 
         for idx, row in enumerate(rows):
             # Parse values
@@ -116,10 +118,14 @@ class DatasetAnalysisEngine:
 
             # Verification of cost formula if component columns present
             if "input_cost_usd" in row and "output_cost_usd" in row:
+                component_data_found = True
                 in_cost_dec = Decimal(str(row.get("input_cost_usd") or 0))
                 out_cost_dec = Decimal(str(row.get("output_cost_usd") or 0))
                 disc_dec = Decimal(str(row.get("cached_input_discount_usd") or 0))
-                expected_computed_cost += (in_cost_dec + out_cost_dec - disc_dec)
+                row_expected = (in_cost_dec + out_cost_dec - disc_dec)
+                expected_computed_cost += row_expected
+                if abs(row_cost - row_expected) > Decimal("0.00000001"):
+                    row_formula_mismatches += 1
             else:
                 expected_computed_cost += row_cost
 
@@ -208,7 +214,9 @@ class DatasetAnalysisEngine:
 
         # Mathematical Reconciliation Checks
         cost_diff = abs(total_cost_usd - expected_computed_cost)
-        token_sum_diff = (total_input_tokens + total_output_tokens) - total_tokens
+        token_sum_diff = abs((total_input_tokens + total_output_tokens) - total_tokens)
+        attr_sum = sum(attrib_counts.values())
+        attr_diff = abs(total_records - attr_sum)
 
         reconciliation_checks = [
             {
@@ -228,11 +236,20 @@ class DatasetAnalysisEngine:
             {
                 "check": "Attribution Matrix Sum",
                 "expected": str(total_records),
-                "actual": str(sum(attrib_counts.values())),
-                "discrepancy": "0",
-                "status": "MATCH"
+                "actual": str(attr_sum),
+                "discrepancy": str(attr_diff),
+                "status": "MATCH" if attr_diff == 0 else "MISMATCH"
             }
         ]
+
+        if component_data_found:
+            reconciliation_checks.append({
+                "check": "Row Component Cost Integrity (Input + Output - Cached Disc == Cost)",
+                "expected": f"0 mismatches across {total_records} rows",
+                "actual": f"{row_formula_mismatches} mismatches",
+                "discrepancy": str(row_formula_mismatches),
+                "status": "MATCH" if row_formula_mismatches == 0 else "MISMATCH"
+            })
 
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         throughput_rps = round(total_records / (elapsed_ms / 1000.0), 0) if elapsed_ms > 0 else 100000
