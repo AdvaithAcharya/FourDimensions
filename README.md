@@ -1,49 +1,80 @@
 # Krypton: Enterprise LLM FinOps Observability & Attribution Gateway
 ### Commvault Challenge PS-404 · Solution Architecture & Delivery
 
-[![Audit Status](https://img.shields.io/badge/Reconciliation%20Audit-PASSED%20(100%25)-emerald.svg)](#-deliverable-4-mathematical-reconciliation--audit)
+[![Security Gate](https://img.shields.io/badge/Security-Admin%20Clearance%20Gate-red.svg)](#-admin-authentication-credentials)
+[![Reconciliation Audit](https://img.shields.io/badge/Reconciliation%20Audit-PASSED%20(100%25)-emerald.svg)](#-deliverable-4-mathematical-reconciliation--audit)
 [![Discrepancy Rate](https://img.shields.io/badge/Discrepancy%20Rate-0.000000%25-brightgreen.svg)](#-deliverable-4-mathematical-reconciliation--audit)
 [![Precision](https://img.shields.io/badge/Arithmetic-Decimal%20Fixed--Point-blue.svg)](#-algorithmic-complexity--benchmarks)
-[![Provider Mode](https://img.shields.io/badge/Provider-Simulated%20%2B%20Live%20Gemini-orange.svg)](#-provider-modes)
+[![Provider Modes](https://img.shields.io/badge/Providers-OpenAI%20%2B%20Anthropic%20%2B%20Gemini-orange.svg)](#-multi-provider-inbound-interfaces)
+[![Pytest Suite](https://img.shields.io/badge/Tests-23%20PASSED-success.svg)](#-automated-pytest-test-suite)
 
 ---
 
 ## 📌 Project Overview
 
-Organizations struggle to identify which teams, features, models, or users consume the most LLM tokens and incur the highest cloud API costs. 
+Organizations struggle to identify which teams, features, models, or users consume the most LLM tokens and incur the highest cloud API costs. Untagged requests often get misattributed, inflating departmental bills, while floating-point rounding errors lead to ledger drift.
 
-**Krypton** is an enterprise-grade LLM FinOps proxy and observability gateway engineered for **Commvault Challenge PS-404**. It intercepts LLM API traffic, dynamically extracts multi-tenant attribution metadata from HTTP headers or JSON request bodies, evaluates exact token costs using a configurable multi-model pricing catalog with **zero floating-point drift (`Decimal`)**, and streams real-time cost intelligence to an interactive dashboard.
+**Krypton** is an enterprise-grade LLM FinOps proxy and observability gateway engineered for **Commvault Challenge PS-404**. It intercepts LLM API traffic, dynamically extracts multi-tenant attribution metadata from HTTP headers or JSON request bodies, evaluates exact token costs using an external pricing catalog with **zero floating-point drift (`Decimal`)**, and streams real-time cost intelligence to an interactive dashboard.
+
+---
+
+## 🔐 Admin Authentication Credentials
+
+For security compliance, access to the interactive FinOps dashboard is protected behind an **Administrative Clearance Gate**:
+
+| Parameter | Value |
+| :--- | :--- |
+| **Admin Username** | `admin` |
+| **Admin Password** | `admin123` |
+| **Access URL** | `http://localhost:5173` |
+| **One-Click Demo** | Use the **"Demo Creds (user: admin \| pass: admin123)"** button on the login screen |
+| **Session Control** | Terminate sessions anytime via the **admin · Sign Out** button in the top navigation bar |
 
 ---
 
 ## 💻 Tech Stack
 
 - **Backend Gateway**: Python 3.11+, FastAPI (Async), Uvicorn, Pydantic v2
-- **Tokenization Engine**: Tiktoken (`cl100k_base` BPE tokenizer)
+- **Tokenization Engine**: Tiktoken (`cl100k_base` BPE tokenizer) with heuristics for missing tokens
 - **Financial Calculation Engine**: Python `decimal.Decimal` with `ROUND_HALF_UP` fixed-point quantization (up to 10-decimal precision)
+- **External Pricing Catalog**: Configurable JSON/CSV pricing tables loaded at runtime (`backend/data/pricing.json`)
 - **Persistence Tier**: Dual-mode resilient tier — Async MongoDB Atlas (`motor`) when configured, with automatic zero-configuration In-Memory ledger fallback
 - **Frontend Dashboard**: React 19, Vite 8, Tailwind CSS 4, Chart.js, React-ChartJS-2, Lucide React icons
 - **Companion AI Client**: React 19, Vite 8, Tailwind CSS 4, React-Markdown, Axios
-- **Code Quality & Testing**: Oxlint, Python `unittest` / CLI audit test harness
+- **Automated Testing**: Pytest (`pytest backend/tests/ -v`) with 23 unit & integration tests
 
 ---
 
 ## 🚀 Key Features
 
-- **Transparent OpenAI-Compatible Proxy**: Exposes `/v1/chat/completions` supporting both simulated provider mode and upstream live AI endpoints.
-- **Configurable Multi-Tenant Attribution**: Ingests team, feature, user, and environment attribution through standard HTTP headers (`X-Team`, `X-Feature`, `X-User-ID`, `X-Environment`) or JSON body `attribution: {...}` metadata.
-- **Exact Decimal Pricing & Showback**: $\mathcal{O}(1)$ lookup and arithmetic calculating input, output, and cached discount costs with strictly zero binary floating-point drift ($\Delta = \$0.00000000$).
-- **Multi-Currency Global Conversion**: Real-time showback rates across USD ($), INR (₹), EUR (€), GBP (£), and JPY (¥).
-- **Interactive 4-Dimensional Breakdowns**: Dynamic Chart.js visualizations breaking down spend and token consumption across:
-  - **Dimension 1**: Team / Department
-  - **Dimension 2**: Feature / Workload
-  - **Dimension 3**: Model Distribution
-  - **Dimension 4**: Time Period Trajectory
-- **Immutable Request Audit Ledger**: Searchable, filterable real-time table recording every inbound call, prompt/completion tokens, latency, and exact cost.
-- **Instant Zero-Baseline Reset**: Single-click **"Reset to 0"** action that atomically resets all ledger records, token counts, and spend metrics back to zero.
-- **Bulk Dataset Ingestion Engine**: Upload `.zip`, `.csv`, `.jsonl`, or `.json` telemetry files to run single-pass streaming aggregations (~55,000 records/sec) with automated mathematical reconciliation proofs.
-- **Mathematical Audit Suite (PS-404 Deliverable 4)**: Automated test harness verifying actual calculations against theoretical ground truth down to 8 decimal places.
-- **Multi-Tenant Traffic Simulator**: One-click or CLI load generation across 5 organizational departments.
+1. **Dual-Provider Transparent Proxy Interfaces**:
+   - **OpenAI Compatible**: `POST /v1/chat/completions` (OpenAI format requests & streaming).
+   - **Anthropic Messages Compatible**: `POST /v1/messages` (Anthropic format with `input_tokens` and `output_tokens` in `usage`).
+2. **True Attribution & Unattributed Spend Isolation**:
+   - Untagged requests strictly default to `"Unattributed"` (`team`, `feature`, `user`)—never silently inflated into Engineering.
+   - Granular `attribution_status` tracking: `"complete"` (all 3 dimensions present), `"partial"`, or `"unattributed"`.
+   - Visible dashboard KPI banner for `"Unattributed Spend"` to remediate untagged rogue workloads.
+3. **External Pricing Catalog & Longest-Match Resolution**:
+   - Reads catalog from `PRICING_FILE` (`backend/data/pricing.json`), supporting per-1K and per-1M units.
+   - Longest-prefix matching: dated models (`gpt-4o-mini-2024-07-18`) resolve to `gpt-4o-mini` rates.
+   - Unknown models are charged at $0, tagged `cost_status="unpriced_model"`, and flagged with visible UI warnings.
+4. **Token Provenance & Heuristics**:
+   - Tracks `token_source` (`"reported"` vs `"estimated"`) on every ledger record.
+   - Dashboard KPI card displays `"X% of cost based on estimated tokens"`.
+5. **Exact Decimal Accounting**:
+   - $\mathcal{O}(1)$ lookup and arithmetic calculating input, output, and cached discount costs with strictly zero binary floating-point drift ($\Delta = \$0.00000000$).
+6. **Independent Ground-Truth Expected Values Validation**:
+   - `POST /api/finops/validate/upload`: Upload organizer-supplied expected values JSON; validates against **actual aggregated ledger totals**.
+   - If expected file has missing/unrecognized keys: returns `NO_CHECKS` (never claims false MATCH).
+   - Adversarial verification: injected discrepancies (e.g. fake $999) immediately trigger `MISMATCH`.
+7. **Bulk Dataset Ingestion Engine with Quarantined Robustness**:
+   - Supports `.zip` archives (extracts and analyzes embedded CSV or JSONL automatically), as well as direct `.csv`, `.jsonl`, and `.json` files.
+   - Recomputes row costs using the pricing catalog rather than trusting a `cost_usd` column.
+   - Malformed rows (e.g. corrupt strings, bad values) are routed to `rejected_records` with exact reasons without failing the upload.
+   - Saves committed records to MongoDB Atlas and memory without 5,000-record truncation limits.
+8. **Interactive 4-Dimensional Breakdowns & Multi-Currency Showback**:
+   - Dynamic Chart.js visualizations breaking down spend across **Team**, **Feature**, **Model**, and **Time Period**.
+   - Real-time currency conversions across USD ($), INR (₹), EUR (€), and GBP (£).
 
 ---
 
@@ -54,14 +85,11 @@ Before running the project, ensure you have the following installed on your mach
 - **Python**: Version `3.11` or higher
 - **Node.js**: Version `18.0.0` or higher
 - **npm**: Version `9.0.0` or higher (bundled with Node.js)
-- **Git** (optional, for version control)
+- **Git** (for version control)
 
 ---
 
 ## 🛠️ Installation & Run Instructions
-
-> [!NOTE]
-> All commands listed below have been verified directly in the project environment.
 
 ### 1. Backend Gateway Setup & Startup
 
@@ -81,22 +109,22 @@ Before running the project, ensure you have the following installed on your mach
 ### 2. Interactive FinOps Dashboard Setup & Startup
 
 1. Open a second terminal and navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
 2. Install frontend dependencies:
    ```bash
+   cd frontend
    npm install
    ```
-3. *(Optional)* Verify the production build:
-   ```bash
-   npm run build
-   ```
-4. Start the Vite development server:
+3. Start the Vite development server:
    ```bash
    npm run dev
    ```
-   *Access the interactive dashboard in your browser at `http://localhost:5173`.*
+4. Access the application in your browser at:
+   ```
+   http://localhost:5173
+   ```
+5. Log in using admin credentials:
+   - **Username**: `admin`
+   - **Password**: `admin123`
 
 ---
 
@@ -105,36 +133,37 @@ Before running the project, ensure you have the following installed on your mach
 1. Open a third terminal and navigate to the `gemi` directory:
    ```bash
    cd gemi
-   ```
-2. Install dependencies:
-   ```bash
    npm install
-   ```
-3. *(Optional)* Verify the production build:
-   ```bash
-   npm run build
-   ```
-4. Start the companion client:
-   ```bash
    npm run dev
    ```
-   *Access the companion client at `http://localhost:5174` to chat with the attribution-enabled proxy.*
+   *Access the companion client at `http://localhost:5174` to send live test chat traffic to the gateway.*
 
 ---
 
-### 4. Running Verification Audits & Simulators
+## ⚙️ Environment Configuration
 
-- **Run Mathematical Reconciliation Audit (PS-404 Deliverable 4)**:
-  ```bash
-  python validate_reconciliation.py
-  ```
-  *Generates `validation_report.json` and verifies 0.000000% error rate.*
+Copy the template configuration file:
+```bash
+cp .env.example .env
+```
 
-- **Simulate Multi-Tenant Corporate Traffic**:
-  ```bash
-  python traffic_simulator.py
-  ```
-  *Sends sample requests across Engineering, Data-Science, Support, Marketing, and Product to populate the live dashboard.*
+Key environment parameters:
+```env
+# Google Gemini API Key (Required only if USE_LIVE_GEMINI=true)
+GEMINI_API_KEY=""
+USE_LIVE_GEMINI="false"
+SIMULATED_LATENCY_MS=45
+
+# MongoDB Atlas Connection (Optional - falls back to in-memory ledger if omitted)
+MONGO_URI="mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?appName=<app_name>"
+DATABASE_NAME="krypton_gateway"
+
+# External Pricing Catalog Path (Defaults to built-in JSON)
+PRICING_FILE="backend/data/pricing.json"
+```
+
+> [!NOTE]
+> `.env` is strictly excluded by `.gitignore`. No database passwords or secrets are tracked in version control.
 
 ---
 
@@ -142,10 +171,10 @@ Before running the project, ensure you have the following installed on your mach
 
 | PS-404 Deliverable | Krypton Implementation | Architectural Highlight |
 | :--- | :--- | :--- |
-| **1. Request Logger or Proxy with Configurable Attribution** | Transparent OpenAI-compatible `/v1/chat/completions` proxy with dual header & JSON-body attribution parser (`X-Team`, `X-Feature`, `X-User-ID`, `attribution: {...}`). | Zero-latency asynchronous ingestion with background ledger commit. |
-| **2. Cost & Usage Calculations via Pricing Table** | `backend/pricing.py` Decimal accounting engine mapping frontier models (`gpt-4o`, `claude-3-5-sonnet`, `gemini-1.5-pro`, `gpt-4o-mini`, etc.) down to 8 decimal places. | Constant time $\mathcal{O}(1)$ pricing lookup and arithmetic with zero representation drift. |
-| **3. Interactive Dashboard with Multi-Dimensional Breakdowns** | React 19 + Tailwind CSS + Chart.js dashboard with breakdowns by **Team**, **Feature**, **Model**, and **Time Period**, plus live **Multi-Currency Showback (USD, INR, EUR, GBP, JPY)**. | 1.5-second live telemetry polling with dynamic time-series charts. |
-| **4. Validation Report Comparing Totals with Known Expected Values** | Dedicated validation engine (`backend/validator.py`), CLI verification script (`validate_reconciliation.py`), and in-dashboard Audit View. | Automated mathematical reconciliation verifying $\Delta = \$0.00000000$ discrepancy against ground truth. |
+| **1. Request Logger or Proxy with Configurable Attribution** | Transparent `/v1/chat/completions` and `/v1/messages` proxy with header & JSON-body attribution parser (`X-Team`, `X-Feature`, `X-User-ID`, `attribution: {...}`). Untagged requests strictly default to `"Unattributed"`. | Tracks `attribution_status` (`complete`, `partial`, `unattributed`) and displays isolated unattributed spend. |
+| **2. Cost & Usage Calculations via Pricing Table** | `backend/pricing.py` Decimal accounting engine loaded from external `pricing.json` with longest-key prefix resolution (`gpt-4o-mini-2024-07-18` $\rightarrow$ `gpt-4o-mini`). | Unknown models charged at $0 (`unpriced_model`), avoiding silent $4o overcharges. |
+| **3. Interactive Dashboard with Multi-Dimensional Breakdowns** | React 19 + Tailwind CSS + Chart.js dashboard with breakdowns by **Team**, **Feature**, **Model**, and **Time Period**, plus live **Multi-Currency Showback (USD, INR, EUR, GBP)**. | 1.5-second live telemetry polling with dynamic time-series charts and unpriced model warnings. |
+| **4. Validation Report Comparing Totals with Known Expected Values** | Dedicated validation endpoint (`POST /api/finops/validate/upload`) comparing actual ledger aggregates against external expected values JSON. | Strict verification flags mismatches (e.g. fake +$999 $\rightarrow$ `MISMATCH`) and returns `NO_CHECKS` if keys are missing. Internal fixtures renamed "Pricing Engine Self-Test". |
 
 ---
 
@@ -153,7 +182,7 @@ Before running the project, ensure you have the following installed on your mach
 
 | Dimension | Theoretical Complexity | Empirical Benchmark | Description |
 | :--- | :--- | :--- | :--- |
-| **Pricing Lookup** | $\mathcal{O}(1)$ | $<0.002\text{ ms}$ | Direct hash-map lookup with substring fallback. |
+| **Pricing Lookup** | $\mathcal{O}(1)$ | $<0.002\text{ ms}$ | Hash-map lookup with longest-prefix resolution. |
 | **Cost Calculation** | $\mathcal{O}(1)$ | $<0.004\text{ ms}$ | Fixed-point Python `Decimal` multiplication & quantization. |
 | **Auxiliary Space** | $\mathcal{O}(1)$ | $<120\text{ bytes}$ | Constant memory allocated per request evaluation. |
 | **Throughput** | $\sim 250,000\text{ evals/sec}$ | $3.39\text{ ms} / 1,000\text{ evals}$ | Sub-millisecond calculation pipeline. |
@@ -161,40 +190,9 @@ Before running the project, ensure you have the following installed on your mach
 
 ---
 
-## 🧪 Deliverable 4: Mathematical Reconciliation & Audit Output
+## 🌐 API Attribution Specifications
 
-```text
-==============================================================================
-  COMMVAULT PS-404: LLM FINOPS RECONCILIATION & ACCURACY AUDIT
-==============================================================================
-Timestamp: 2026-10-10 02:18:51
-Auditing Decimal Accounting Engine against Known Expected Values...
-
-METRIC                       | EXPECTED        | ACTUAL          | DIFF       | STATUS
-------------------------------------------------------------------------------
-Total Cost (USD)             | $0.08077000     | $0.08077000     | $0.00000000 | [MATCH]
-Prompt Tokens                | 24000           | 24000           | 0          | [MATCH]
-Completion Tokens            | 6300            | 6300            | 0          | [MATCH]
-Total Tokens Sum             | 30300           | 30300           | 0          | [MATCH]
-Team Spend: Engineering      | $0.00828000     | $0.00828000     | $0.00000000 | [MATCH]
-Team Spend: Data-Science     | $0.06000000     | $0.06000000     | $0.00000000 | [MATCH]
-Team Spend: Customer-Support | $0.00042000     | $0.00042000     | $0.00000000 | [MATCH]
-Team Spend: Marketing        | $0.01207000     | $0.01207000     | $0.00000000 | [MATCH]
-------------------------------------------------------------------------------
-
-AUDIT VERDICT: PASSED (100% Exact Match)
-ERROR RATE:    0.000000%
-AUDIT LATENCY: 0.645 ms
-==============================================================================
-```
-
----
-
-## 🌐 API Attribution Specification
-
-Clients can supply attribution metadata either through **HTTP Headers** or the **JSON Payload**:
-
-### Method A: HTTP Headers (Standard Gateway Pattern)
+### Method A: OpenAI HTTP Headers
 ```bash
 curl -X POST http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -208,7 +206,7 @@ curl -X POST http://127.0.0.1:8000/v1/chat/completions \
   }'
 ```
 
-### Method B: JSON Body Attribution Object
+### Method B: OpenAI JSON Body Attribution Object
 ```bash
 curl -X POST http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -224,69 +222,49 @@ curl -X POST http://127.0.0.1:8000/v1/chat/completions \
   }'
 ```
 
+### Method C: Anthropic Messages Format
+```bash
+curl -X POST http://127.0.0.1:8000/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "X-Team: Customer-Support" \
+  -H "X-Feature: Live-Chatbot" \
+  -H "X-User-ID: sup_tom" \
+  -d '{
+    "model": "claude-3-5-sonnet",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "Help customer reset password"}]
+  }'
+```
+
 ---
 
-## 🏷️ Supported Pricing Table
+## 🏷️ Supported Pricing Catalog
 
-Rates are defined per **1,000,000 tokens** (with per-1k conversions exposed):
+Rates are loaded from `backend/data/pricing.json`:
 
 | Model Key | Input / 1M Tokens | Output / 1M Tokens | Input / 1k Tokens | Output / 1k Tokens |
 | :--- | :--- | :--- | :--- | :--- |
-| `gpt-4o` | **$2.50** | **$10.00** | $0.0025 | $0.0100 |
-| `gpt-4o-mini` | **$0.15** | **$0.60** | $0.00015 | $0.0006 |
-| `claude-3-5-sonnet` | **$3.00** | **$15.00** | $0.0030 | $0.0150 |
-| `gemini-1.5-flash` | **$0.075** | **$0.30** | $0.000075 | $0.0003 |
-| `gemini-1.5-pro` | **$1.25** | **$5.00** | $0.00125 | $0.0050 |
-| `llama-3-70b` | **$0.80** | **$0.80** | $0.0008 | $0.0008 |
-
----
-
-## 📊 Dataset Ingestion & 4-Dimensional Analysis Engine
-
-Krypton includes a high-performance offline and batch telemetry ingestion engine designed for bulk audits, historical backfills, and multi-dimensional attribution.
-
-### Features:
-1. **Multi-Format Ingestion**: Supports `.zip` archives (extracts and analyzes embedded CSV or JSONL automatically), as well as direct `.csv`, `.jsonl`, and `.json` files.
-2. **Interactive File Selector & Ingestion**: In the interactive dashboard under the **Dataset Ingestion** tab, upload any telemetry dataset to evaluate it with high-throughput streaming aggregation (~55,000 records/second).
-3. **4-Dimensional Breakdown**:
-   - **Dimension 1 (Team)**: Spend, token volume, and % share per organizational unit (Engineering, Research, Customer Support, etc.).
-   - **Dimension 2 (Feature)**: Granular cost attribution per product feature (Code Review Bot, Search Summarizer, etc.).
-   - **Dimension 3 (Model)**: Multi-model cost distribution across frontier and open-weight models.
-   - **Dimension 4 (Time Period)**: Daily spend trajectory and token burn rate.
-4. **Mathematical Reconciliation Proof**:
-   - Compares individual record arithmetic (`input_cost + output_cost - cached_discount`) against the grand total.
-   - Computes discrepancy down to 10 decimal places ($\Delta = \$0.0000000000$).
-   - Reconciles tokens and total spend with 0.000000% error rate.
-5. **Attribution Coverage Matrix**:
-   - Tracks **Complete** (all 3 dimensions present), **Partial** (1 or 2 dimensions present), and **Unattributed** traffic.
-6. **Live Ledger Import Toggle**:
-   - Optional checkbox to merge the uploaded dataset into the live interactive dashboard ledger and MongoDB Atlas without truncation caps.
-7. **Robustness & Quarantine**:
-   - Corrupted rows are isolated in a quarantine list with exact reasons without failing the overall upload.
-
-### Multi-Provider Inbound Interfaces:
-- **OpenAI Compatible**: `POST /v1/chat/completions` (OpenAI format requests & streaming)
-- **Anthropic Messages**: `POST /v1/messages` (Anthropic format with `input_tokens` and `output_tokens` in `usage`)
-
-### Ground-Truth Validation API:
-- `POST /api/finops/validate/upload`: Validates actual aggregated ledger totals against organizer-supplied expected values JSON. Returns `MATCH`, `MISMATCH` with exact delta, or `NO_CHECKS` if no keys match.
-- `POST /api/finops/validate`: Executes internal deterministic pricing engine self-test and complexity benchmarks.
+| `gpt-4o` | **$2.50** | **$10.00** | $0.00250 | $0.01000 |
+| `gpt-4o-mini` | **$0.15** | **$0.60** | $0.00015 | $0.00060 |
+| `claude-3-5-sonnet` | **$3.00** | **$15.00** | $0.00300 | $0.01500 |
+| `gemini-1.5-flash` | **$0.075** | **$0.30** | $0.000075 | $0.00030 |
+| `gemini-1.5-pro` | **$1.25** | **$5.00** | $0.00125 | $0.00500 |
+| `llama-3-70b` | **$0.80** | **$0.80** | $0.00080 | $0.00080 |
 
 ---
 
 ## 🧪 Automated Pytest Test Suite
 
-Execute the comprehensive test suite covering attribution, pricing table resolution, dataset calculation, proxy endpoints, and validator:
+Execute the test suite in the root directory:
 
 ```bash
 pytest backend/tests/ -v
 ```
 
-All 20 tests verify:
-- Untagged requests strictly default to `"Unattributed"` with attribution status tracking.
-- Longest-prefix model matching (`gpt-4o-mini-2024-07-18` $\rightarrow$ `gpt-4o-mini`).
-- Unknown models charged at $0 with `unpriced_model` status.
-- Pricing engine calculation fidelity from external `pricing.json` / `pricing.csv`.
-- Robust dataset loading with alias resolution and corrupted row quarantine.
-- Dual-provider coverage (OpenAI + Anthropic).
-- Ground-truth validation reporting mismatch upon adversarial delta injection.
+All 23 unit & integration tests verify:
+1. `test_auth.py` (3 tests): Admin login validation (`admin` / `admin123`), 401 on bad credentials, and session token lifecycle.
+2. `test_attribution.py` (5 tests): Untagged requests strictly default to `"Unattributed"`; partial vs complete attribution status; header and nested object parsing.
+3. `test_pricing.py` (5 tests): Longest-prefix matching (`gpt-4o-mini-2024-07-18` $\rightarrow$ `gpt-4o-mini`); unknown models charged at $0 and marked `unpriced_model`; custom file loading; Decimal precision.
+4. `test_dataset_loader.py` (5 tests): Tokens-only CSV computes non-zero cost via pricing catalog; OpenAI & Anthropic JSONL token parsing; character heuristic estimation (`token_source="estimated"`); malformed row isolation in `rejected_records`.
+5. `test_proxy_endpoints.py` (2 tests): OpenAI `/v1/chat/completions` untagged defaults; Anthropic `/v1/messages` format with `usage.input_tokens` and `usage.output_tokens`.
+6. `test_validator.py` (3 tests): True ledger expected values return `MATCH`; adversarial mismatch injection returns `MISMATCH`; empty/unrecognized files return `NO_CHECKS`.
