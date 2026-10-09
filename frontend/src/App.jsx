@@ -13,6 +13,7 @@ import { ShieldCheck, Sparkles } from 'lucide-react';
 
 const TICKER_ITEMS = [
   'COMMVAULT CHALLENGE PS-404',
+  'MONGODB ATLAS CLOUD PERSISTENCE ACTIVE (CLUSTER1)',
   'MULTI-TENANT ATTRIBUTION ENGINE',
   'EXACT DECIMAL FIXED-POINT ACCOUNTING',
   'ZERO FLOATING-POINT DRIFT (Δ = 0.00000000)',
@@ -128,10 +129,15 @@ function App() {
               backed by an exact Decimal accounting ledger with 100% verified mathematical reconciliation.
             </p>
 
-            <div className="flex items-center justify-center gap-4 mt-6 text-ember font-mono text-xs">
+            <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-ember font-mono text-xs">
               <span className="flex items-center gap-1.5 text-emerald-400">
                 <ShieldCheck size={14} className="animate-glow-pulse" />
                 Simulated Provider Interface Ready
+              </span>
+              <span className="text-gray-600">·</span>
+              <span className="text-cyan-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                MongoDB Atlas Connected (Cluster1)
               </span>
               <span className="text-gray-600">·</span>
               <span className="text-gray-400">

@@ -31,7 +31,7 @@ from backend.currency import currency_service
 from backend.db import (
     init_databases, save_usage_record, get_recent_usage_logs,
     get_finops_summary, get_finops_breakdown, get_finops_timeseries,
-    clear_all_data, in_memory_logs
+    clear_all_data, in_memory_logs, is_mongodb_connected
 )
 
 logger = logging.getLogger("scryptic.gateway")
@@ -97,8 +97,26 @@ async def root():
         "version": settings.VERSION,
         "mode": "Simulated Provider" if settings.MOCK_PROVIDER else "Live Gemini Proxy",
         "pricing_engine": "Decimal Fixed-Point (8-decimal precision)",
+        "database": {
+            "connected": is_mongodb_connected(),
+            "provider": "MongoDB Atlas" if is_mongodb_connected() else "In-Memory Resilient Store",
+            "cluster": "Cluster1",
+            "database_name": settings.DATABASE_NAME
+        },
         "supported_models": list(pricing_engine.pricing_table.keys()),
         "status": "HEALTHY"
+    }
+
+@app.get("/api/health")
+async def health_check():
+    return {
+        "status": "HEALTHY",
+        "database": {
+            "connected": is_mongodb_connected(),
+            "provider": "MongoDB Atlas" if is_mongodb_connected() else "In-Memory Resilient Store",
+            "cluster": "Cluster1",
+            "database_name": settings.DATABASE_NAME
+        }
     }
 
 # ============================================================================

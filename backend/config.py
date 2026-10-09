@@ -17,8 +17,8 @@ class Settings(BaseModel):
     SIMULATED_LATENCY_MS: int = int(os.getenv("SIMULATED_LATENCY_MS", 45))
     
     # MongoDB Settings
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "scryptic_finops")
+    MONGODB_URL: str = os.getenv("MONGO_URI") or os.getenv("MONGODB_URL") or "mongodb+srv://advaith23cs005_db_user:advaith2316@cluster1.1tuvby8.mongodb.net/?appName=Cluster1"
+    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "krypton_gateway")
     
     # Redis Settings
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

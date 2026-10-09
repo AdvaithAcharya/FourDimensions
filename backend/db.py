@@ -16,14 +16,27 @@ in_memory_logs: List[Dict[str, Any]] = []
 mongo_client = None
 db = None
 
+def is_mongodb_connected() -> bool:
+    return db is not None
+
 async def init_databases():
     global mongo_client, db
     try:
         from motor.motor_asyncio import AsyncIOMotorClient
-        mongo_client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=1500)
+        mongo_client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=3000)
         await mongo_client.admin.command('ping')
         db = mongo_client[settings.DATABASE_NAME]
-        logger.info("Successfully connected to MongoDB Atlas!")
+        logger.info(f"Successfully connected to MongoDB Atlas database '{settings.DATABASE_NAME}'!")
+
+        # Load existing persisted records into memory
+        cursor = db.usage_logs.find({}).sort("timestamp_epoch", -1).limit(5000)
+        persisted_logs = await cursor.to_list(length=5000)
+        for doc in persisted_logs:
+            doc.pop("_id", None)
+            if not any(r.get("id") == doc.get("id") for r in in_memory_logs):
+                in_memory_logs.append(doc)
+        if persisted_logs:
+            logger.info(f"Loaded {len(persisted_logs)} records from MongoDB Atlas into active ledger.")
     except Exception as e:
         logger.warning(f"MongoDB connection unfulfilled ({e}). Operating in resilient In-Memory FinOps Store.")
         mongo_client = None
