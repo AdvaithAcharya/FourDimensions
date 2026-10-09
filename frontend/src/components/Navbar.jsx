@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Layers, Zap, Activity, RotateCcw, LogOut, Shield } from 'lucide-react';
+import { Layers, Zap, Activity, RotateCcw, LogOut, Shield, Download, ChevronDown, FileSpreadsheet, FileJson } from 'lucide-react';
 
 function MagneticButton({ children, className = '', onClick, ...rest }) {
   const ref = useRef(null);
@@ -35,6 +35,7 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
   const [scrolled, setScrolled] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const dashBtnRef = useRef(null);
   const auditBtnRef = useRef(null);
@@ -183,6 +184,76 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
               {simulating ? 'Simulating...' : 'Simulate Traffic'}
             </span>
           </MagneticButton>
+        </div>
+
+        {/* Export Data Statistics Dropdown */}
+        <div className="relative">
+          <button
+            id="navbar-export-btn"
+            onClick={() => setExportOpen(!exportOpen)}
+            title="Export FinOps Telemetry & Data Statistics"
+            className="px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all duration-300"
+          >
+            <Download size={13} className="text-cyan-400" />
+            <span className="hidden sm:inline">Export</span>
+            <span>Stats</span>
+            <ChevronDown size={12} className={`transition-transform duration-200 ${exportOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {exportOpen && (
+            <div
+              className="absolute right-0 mt-2 w-64 rounded-xl border border-white/10 bg-black/95 backdrop-blur-2xl shadow-[0_10px_40px_rgba(0,0,0,0.9)] p-1.5 z-50 font-mono text-xs animate-fade-in"
+              onMouseLeave={() => setExportOpen(false)}
+            >
+              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-gray-500 border-b border-white/5">
+                Export Data Telemetry ({currency})
+              </div>
+              <button
+                id="export-csv-full-btn"
+                onClick={() => {
+                  setExportOpen(false);
+                  window.open(`http://127.0.0.1:8000/api/finops/export?format=csv&type=full&currency=${currency}`);
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-gray-200 hover:text-white flex items-center gap-2.5 transition-colors group"
+              >
+                <FileSpreadsheet size={15} className="text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+                <div>
+                  <div className="font-semibold text-white">Full Financial Report (CSV)</div>
+                  <div className="text-[10px] text-gray-400">KPIs, Team, Feature & Model breakdown</div>
+                </div>
+              </button>
+
+              <button
+                id="export-csv-ledger-btn"
+                onClick={() => {
+                  setExportOpen(false);
+                  window.open(`http://127.0.0.1:8000/api/finops/export?format=csv&type=ledger&currency=${currency}`);
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-gray-200 hover:text-white flex items-center gap-2.5 transition-colors group"
+              >
+                <FileSpreadsheet size={15} className="text-cyan-400 shrink-0 group-hover:scale-110 transition-transform" />
+                <div>
+                  <div className="font-semibold text-white">Request Audit Ledger (CSV)</div>
+                  <div className="text-[10px] text-gray-400">Flat tabular logs for Excel / SQL</div>
+                </div>
+              </button>
+
+              <button
+                id="export-json-btn"
+                onClick={() => {
+                  setExportOpen(false);
+                  window.open(`http://127.0.0.1:8000/api/finops/export?format=json&currency=${currency}`);
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-gray-200 hover:text-white flex items-center gap-2.5 transition-colors group"
+              >
+                <FileJson size={15} className="text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+                <div>
+                  <div className="font-semibold text-white">Full Telemetry (JSON)</div>
+                  <div className="text-[10px] text-gray-400">Structured 4D telemetry & schema</div>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Currency Selector */}

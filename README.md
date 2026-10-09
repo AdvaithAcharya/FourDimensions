@@ -6,7 +6,7 @@
 [![Discrepancy Rate](https://img.shields.io/badge/Discrepancy%20Rate-0.000000%25-brightgreen.svg)](#-deliverable-4-mathematical-reconciliation--audit)
 [![Precision](https://img.shields.io/badge/Arithmetic-Decimal%20Fixed--Point-blue.svg)](#-algorithmic-complexity--benchmarks)
 [![Provider Modes](https://img.shields.io/badge/Providers-OpenAI%20%2B%20Anthropic%20%2B%20Gemini-orange.svg)](#-multi-provider-inbound-interfaces)
-[![Pytest Suite](https://img.shields.io/badge/Tests-23%20PASSED-success.svg)](#-automated-pytest-test-suite)
+[![Pytest Suite](https://img.shields.io/badge/Tests-26%20PASSED-success.svg)](#-automated-pytest-test-suite)
 
 ---
 
@@ -253,6 +253,30 @@ Rates are loaded from `backend/data/pricing.json`:
 
 ---
 
+## 📤 Data Statistics & Telemetry Export
+
+Krypton includes an automated export engine for financial reconciliation, executive reporting, and offline audits:
+
+### Export Formats:
+1. **Full Financial Statement (`CSV`)**:
+   - Executive financial report featuring multi-section tables:
+     - **Section 1**: KPI summary (Total spend, requests, tokens, attribution confidence, unattributed spend, estimated tokens share, mean latency).
+     - **Section 2**: Department / Team attribution breakdown.
+     - **Section 3**: Feature / workload attribution breakdown.
+     - **Section 4**: Model usage distribution.
+     - **Section 5**: Granular request ledger entries.
+2. **Request Audit Ledger (`CSV`)**:
+   - Flat tabular export of individual request logs (`id, timestamp, team, feature, user, model, prompt_tokens, completion_tokens, total_tokens, token_source, attribution_status, total_cost_usd, latency_ms`).
+3. **Full FinOps Telemetry (`JSON`)**:
+   - Complete structured JSON payload containing 4-dimensional breakdowns, metadata, and all active ledger records.
+
+### API Endpoints:
+- `GET /api/finops/export?format=csv&type=full&currency=USD` (Download executive CSV report)
+- `GET /api/finops/export?format=csv&type=ledger` (Download flat tabular CSV)
+- `GET /api/finops/export?format=json&currency=USD` (Download structured JSON telemetry)
+
+---
+
 ## 🧪 Automated Pytest Test Suite
 
 Execute the test suite in the root directory:
@@ -261,10 +285,11 @@ Execute the test suite in the root directory:
 pytest backend/tests/ -v
 ```
 
-All 23 unit & integration tests verify:
+All 26 unit & integration tests verify:
 1. `test_auth.py` (3 tests): Admin login validation (`admin` / `admin123`), 401 on bad credentials, and session token lifecycle.
 2. `test_attribution.py` (5 tests): Untagged requests strictly default to `"Unattributed"`; partial vs complete attribution status; header and nested object parsing.
 3. `test_pricing.py` (5 tests): Longest-prefix matching (`gpt-4o-mini-2024-07-18` $\rightarrow$ `gpt-4o-mini`); unknown models charged at $0 and marked `unpriced_model`; custom file loading; Decimal precision.
 4. `test_dataset_loader.py` (5 tests): Tokens-only CSV computes non-zero cost via pricing catalog; OpenAI & Anthropic JSONL token parsing; character heuristic estimation (`token_source="estimated"`); malformed row isolation in `rejected_records`.
-5. `test_proxy_endpoints.py` (2 tests): OpenAI `/v1/chat/completions` untagged defaults; Anthropic `/v1/messages` format with `usage.input_tokens` and `usage.output_tokens`.
-6. `test_validator.py` (3 tests): True ledger expected values return `MATCH`; adversarial mismatch injection returns `MISMATCH`; empty/unrecognized files return `NO_CHECKS`.
+5. `test_export.py` (3 tests): Exporting data statistics as Full Financial Statement CSV, Request Ledger CSV, and Structured 4D JSON.
+6. `test_proxy_endpoints.py` (2 tests): OpenAI `/v1/chat/completions` untagged defaults; Anthropic `/v1/messages` format with `usage.input_tokens` and `usage.output_tokens`.
+7. `test_validator.py` (3 tests): True ledger expected values return `MATCH`; adversarial mismatch injection returns `MISMATCH`; empty/unrecognized files return `NO_CHECKS`.

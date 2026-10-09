@@ -12,6 +12,8 @@ import logging
 import asyncio
 import json
 import httpx
+import io
+import csv
 import secrets
 from pydantic import BaseModel
 from decimal import Decimal
@@ -750,3 +752,161 @@ async def get_company_analytics(currency: str = Query("USD")):
         "estimated_cost_pct": summary.get("estimated_cost_pct", 0.0),
         "tenants": breakdown
     }
+
+# ============================================================================
+# 6. DATA STATISTICS & TELEMETRY EXPORT
+# ============================================================================
+@app.get("/api/finops/export")
+async def export_finops_statistics(
+    format: str = Query("csv", pattern="^(csv|json)$"),
+    type: str = Query("full", pattern="^(full|summary|ledger)$"),
+    currency: str = Query("USD")
+):
+    """
+    Exports comprehensive FinOps data statistics and 4-dimensional attribution telemetry.
+    Supports CSV (Executive Statement, Ledger, Summary) and JSON for audit reconciliation.
+    """
+    summary = await get_finops_summary(currency=currency)
+    team_breakdown = await get_finops_breakdown(group_by="team", currency=currency)
+    feature_breakdown = await get_finops_breakdown(group_by="feature", currency=currency)
+    model_breakdown = await get_finops_breakdown(group_by="model", currency=currency)
+    time_breakdown = await get_finops_breakdown(group_by="time_period", currency=currency)
+    records = list(in_memory_logs)
+
+    timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+
+    if format.lower() == "json":
+        data = {
+            "title": "Krypton LLM FinOps Observability & Attribution Statistics",
+            "export_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "currency": currency,
+            "currency_symbol": summary.get("currency_symbol", "$"),
+            "executive_summary": summary,
+            "dimension_breakdowns": {
+                "by_team": team_breakdown,
+                "by_feature": feature_breakdown,
+                "by_model": model_breakdown,
+                "by_time_period": time_breakdown
+            },
+            "total_records_count": len(records),
+            "ledger_records": records
+        }
+        json_content = json.dumps(data, indent=2, default=str)
+        filename = f"krypton_finops_statistics_{timestamp_str}.json"
+        return StreamingResponse(
+            io.BytesIO(json_content.encode("utf-8")),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    # Format: CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if type == "ledger":
+        # Flat tabular export of individual request ledger records
+        writer.writerow([
+            "Request ID", "Timestamp", "Team", "Feature", "User ID",
+            "Environment", "Attribution Status", "Model", "Prompt Tokens",
+            "Completion Tokens", "Total Tokens", "Token Source",
+            "Cost Status", "Total Cost USD", "Latency (ms)", "Status Code"
+        ])
+        for r in records:
+            writer.writerow([
+                r.get("id"),
+                r.get("timestamp"),
+                r.get("team"),
+                r.get("feature"),
+                r.get("user"),
+                r.get("environment", "production"),
+                r.get("attribution_status", "unattributed"),
+                r.get("model"),
+                r.get("prompt_tokens", 0),
+                r.get("completion_tokens", 0),
+                r.get("total_tokens", 0),
+                r.get("token_source", "reported"),
+                r.get("cost_status", "priced"),
+                r.get("total_cost_usd", 0.0),
+                r.get("latency_ms", 0.0),
+                r.get("status_code", 200)
+            ])
+    else:
+        # Full / Summary comprehensive multi-section executive financial statement
+        writer.writerow(["================================================================"])
+        writer.writerow(["KRYPTON LLM FINOPS EXECUTIVE DATA STATISTICS & ATTRIBUTION REPORT"])
+        writer.writerow([f"Export Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}"])
+        writer.writerow([f"Selected Currency: {currency} ({summary.get('currency_symbol', '$')})"])
+        writer.writerow(["================================================================"])
+        writer.writerow([])
+
+        # Section 1: Executive KPI Summary
+        writer.writerow(["--- 1. EXECUTIVE KPI SUMMARY ---"])
+        writer.writerow(["Metric", "Value"])
+        writer.writerow(["Total Billed Spend", summary.get("total_cost_formatted", "$0.00")])
+        writer.writerow(["Total Billed Spend (USD)", f"${summary.get('total_cost_usd', 0.0):.6f}"])
+        writer.writerow(["Total Requests Incurred", summary.get("total_requests", 0)])
+        writer.writerow(["Total Tokens Incurred", summary.get("total_tokens", 0)])
+        writer.writerow(["Prompt (Input) Tokens", summary.get("total_prompt_tokens", 0)])
+        writer.writerow(["Completion (Output) Tokens", summary.get("total_completion_tokens", 0)])
+        writer.writerow(["Attribution Confidence Rate", f"{summary.get('attribution_confidence_pct', 0.0)}%"])
+        writer.writerow(["Unattributed Spend", f"${summary.get('unattributed_cost_usd', 0.0):.4f} ({summary.get('unattributed_cost_pct', 0.0)}%)"])
+        writer.writerow(["Estimated Tokens Share", f"{summary.get('estimated_cost_pct', 0.0)}% of cost based on estimated tokens"])
+        writer.writerow(["Mean Gateway Latency", f"{summary.get('avg_latency_ms', 0.0)} ms"])
+        writer.writerow(["Lead Cost Driving Team", summary.get("top_team", "None")])
+        writer.writerow(["Lead Cost Driving Feature", summary.get("top_feature", "None")])
+        writer.writerow(["Lead Cost Driving Model", summary.get("top_model", "None")])
+        writer.writerow([])
+
+        # Section 2: Department Attribution Breakdown
+        writer.writerow(["--- 2. DEPARTMENT / TEAM BREAKDOWN ---"])
+        writer.writerow(["Team / Department", "Total Spend Formatted", "Spend (USD)", "Tokens", "Requests", "Budget Share %"])
+        for t in team_breakdown:
+            writer.writerow([
+                t.get("key"), t.get("total_cost_formatted"), f"${t.get('total_cost_usd', 0.0):.6f}",
+                t.get("total_tokens"), t.get("request_count"), f"{t.get('percentage', 0.0)}%"
+            ])
+        writer.writerow([])
+
+        # Section 3: Feature Breakdown
+        writer.writerow(["--- 3. FEATURE / WORKLOAD BREAKDOWN ---"])
+        writer.writerow(["Feature", "Total Spend Formatted", "Spend (USD)", "Tokens", "Requests", "Budget Share %"])
+        for f in feature_breakdown:
+            writer.writerow([
+                f.get("key"), f.get("total_cost_formatted"), f"${f.get('total_cost_usd', 0.0):.6f}",
+                f.get("total_tokens"), f.get("request_count"), f"{f.get('percentage', 0.0)}%"
+            ])
+        writer.writerow([])
+
+        # Section 4: Model Breakdown
+        writer.writerow(["--- 4. MODEL USAGE BREAKDOWN ---"])
+        writer.writerow(["Model Key", "Total Spend Formatted", "Spend (USD)", "Tokens", "Requests", "Budget Share %"])
+        for m in model_breakdown:
+            writer.writerow([
+                m.get("key"), m.get("total_cost_formatted"), f"${m.get('total_cost_usd', 0.0):.6f}",
+                m.get("total_tokens"), m.get("request_count"), f"{m.get('percentage', 0.0)}%"
+            ])
+        writer.writerow([])
+
+        if type == "full" and len(records) > 0:
+            writer.writerow(["--- 5. RECENT AUDIT LEDGER ENTRIES ---"])
+            writer.writerow([
+                "Request ID", "Timestamp", "Team", "Feature", "User ID",
+                "Model", "Prompt Tokens", "Completion Tokens", "Total Tokens",
+                "Token Source", "Attribution Status", "Total Cost USD"
+            ])
+            for r in records[:500]:
+                writer.writerow([
+                    r.get("id"), r.get("timestamp"), r.get("team"), r.get("feature"),
+                    r.get("user"), r.get("model"), r.get("prompt_tokens", 0),
+                    r.get("completion_tokens", 0), r.get("total_tokens", 0),
+                    r.get("token_source", "reported"), r.get("attribution_status", "unattributed"),
+                    f"${float(r.get('total_cost_usd', 0.0)):.6f}"
+                ])
+
+    csv_data = output.getvalue()
+    filename = f"krypton_finops_statistics_{timestamp_str}.csv"
+    return StreamingResponse(
+        io.BytesIO(csv_data.encode("utf-8")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

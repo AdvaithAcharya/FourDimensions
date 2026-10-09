@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Database, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Search, Database, AlertTriangle, ShieldCheck, Download } from 'lucide-react';
 
 export default function UsageAuditTable({ logs = [], summary = null }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,6 +103,17 @@ export default function UsageAuditTable({ logs = [], summary = null }) {
               </option>
             ))}
           </select>
+
+          {/* Quick Export Button */}
+          <button
+            id="audit-table-export-csv-btn"
+            onClick={() => window.open(`http://127.0.0.1:8000/api/finops/export?format=csv&type=ledger`)}
+            title="Export Request Ledger to CSV"
+            className="bg-black/50 hover:bg-cyan-500/15 border border-white/10 hover:border-cyan-500/40 rounded-lg px-2.5 py-1.5 font-mono text-xs text-gray-300 hover:text-cyan-300 flex items-center gap-1.5 transition-all"
+          >
+            <Download size={13} className="text-cyan-400" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
         </div>
       </div>
 
