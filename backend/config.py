@@ -16,9 +16,12 @@ class Settings(BaseModel):
     MOCK_PROVIDER: bool = os.getenv("USE_LIVE_GEMINI", "false").lower() not in ("true", "1", "yes")
     SIMULATED_LATENCY_MS: int = int(os.getenv("SIMULATED_LATENCY_MS", 45))
     
-    # MongoDB Settings
-    MONGODB_URL: str = os.getenv("MONGO_URI") or os.getenv("MONGODB_URL") or "mongodb+srv://advaith23cs005_db_user:advaith2316@cluster1.1tuvby8.mongodb.net/?appName=Cluster1"
+    # MongoDB Settings (No hardcoded credentials, read strictly from MONGO_URI)
+    MONGODB_URL: str = os.getenv("MONGO_URI", "")
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "krypton_gateway")
+    
+    # Pricing Catalog Settings
+    PRICING_FILE: str = os.getenv("PRICING_FILE", "backend/data/pricing.json")
     
     # Redis Settings
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

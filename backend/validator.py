@@ -2,7 +2,7 @@ import time
 from decimal import Decimal
 from typing import Dict, Any, List
 from backend.pricing import pricing_engine, QUANTIZE_EXP
-from backend.db import db, in_memory_logs, is_mongodb_connected
+from backend.db import db, in_memory_logs, is_mongodb_connected, get_finops_summary, get_finops_breakdown
 from backend.config import settings
 
 # ============================================================================
@@ -138,7 +138,7 @@ class FinOpsValidator:
                 token_discrepancies += 1
 
             # Check 2: Dynamic recalculation against official pricing catalog
-            _, _, recomputed_c, _ = pricing_engine.calculate_cost(m, tin, tout)
+            _, _, recomputed_c, _, _ = pricing_engine.calculate_cost(m, tin, tout)
             recomputed_total_spend += recomputed_c
 
             # Check 3: Zero drift per record (within 8 decimal places)
@@ -212,7 +212,7 @@ class FinOpsValidator:
         fixture_results = []
 
         for f in BENCHMARK_FIXTURES:
-            in_c, out_c, tot_c, matched_m = pricing_engine.calculate_cost(
+            in_c, out_c, tot_c, matched_m, cost_status = pricing_engine.calculate_cost(
                 f["model"], f["in_tokens"], f["out_tokens"]
             )
             actual_total_cost += tot_c
@@ -304,7 +304,7 @@ class FinOpsValidator:
 
         return {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "audit_title": "Commvault PS-404 LLM FinOps Accuracy & Reconciliation Audit",
+            "audit_title": "Pricing Engine Self-Test & Benchmark Matrix",
             "fixtures_evaluated": len(BENCHMARK_FIXTURES),
             "reconciliation_verdict": "PASSED (100% Exact Match)" if benchmark_matched else "FAILED",
             "error_rate_pct": 0.0 if benchmark_matched else 100.0,
@@ -319,4 +319,172 @@ class FinOpsValidator:
             },
             "comparisons": comparisons,
             "live_ledger_audit": live_audit
+        }
+
+    @staticmethod
+    async def validate_against_expected(expected_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validates ACTUAL aggregated ledger totals against user-supplied expected values.
+        Never compares the engine against itself.
+        If no recognized keys are present, returns status 'NO_CHECKS' (never MATCH).
+        """
+        summary = await get_finops_summary(currency="USD")
+        team_breakdown = await get_finops_breakdown(group_by="team", currency="USD")
+        feature_breakdown = await get_finops_breakdown(group_by="feature", currency="USD")
+        model_breakdown = await get_finops_breakdown(group_by="model", currency="USD")
+
+        team_dict = {item["key"]: Decimal(str(item["total_cost_usd"])) for item in team_breakdown}
+        feature_dict = {item["key"]: Decimal(str(item["total_cost_usd"])) for item in feature_breakdown}
+        model_dict = {item["key"]: Decimal(str(item["total_cost_usd"])) for item in model_breakdown}
+
+        actual_total_cost = Decimal(str(summary.get("total_cost_usd", 0)))
+        actual_requests = int(summary.get("total_requests", 0))
+        actual_tokens = int(summary.get("total_tokens", 0))
+        actual_prompt_tokens = int(summary.get("total_prompt_tokens", 0))
+        actual_completion_tokens = int(summary.get("total_completion_tokens", 0))
+
+        checks = []
+
+        # 1. Total Cost Aliases
+        exp_cost = (
+            expected_data.get("grand_total_cost") or
+            expected_data.get("total_cost_usd") or
+            expected_data.get("total_cost") or
+            expected_data.get("cost")
+        )
+        if exp_cost is not None:
+            exp_c_dec = Decimal(str(exp_cost))
+            diff = abs(actual_total_cost - exp_c_dec)
+            checks.append({
+                "metric": "Grand Total Cost (USD)",
+                "expected": f"${exp_c_dec:.8f}",
+                "actual": f"${actual_total_cost:.8f}",
+                "discrepancy": f"${diff:.8f}",
+                "status": "MATCH" if diff == Decimal(0) else "MISMATCH"
+            })
+
+        # 2. Total Requests Aliases
+        exp_req = (
+            expected_data.get("request_count") or
+            expected_data.get("total_requests") or
+            expected_data.get("requests")
+        )
+        if exp_req is not None:
+            exp_r_int = int(exp_req)
+            diff = abs(actual_requests - exp_r_int)
+            checks.append({
+                "metric": "Total Requests Count",
+                "expected": str(exp_r_int),
+                "actual": str(actual_requests),
+                "discrepancy": str(diff),
+                "status": "MATCH" if diff == 0 else "MISMATCH"
+            })
+
+        # 3. Total Tokens Aliases
+        exp_tok = expected_data.get("total_tokens") or expected_data.get("tokens")
+        if exp_tok is not None:
+            exp_t_int = int(exp_tok)
+            diff = abs(actual_tokens - exp_t_int)
+            checks.append({
+                "metric": "Total Tokens Sum",
+                "expected": str(exp_t_int),
+                "actual": str(actual_tokens),
+                "discrepancy": str(diff),
+                "status": "MATCH" if diff == 0 else "MISMATCH"
+            })
+
+        # 4. Prompt Tokens Aliases
+        exp_prompt = expected_data.get("prompt_tokens") or expected_data.get("total_prompt_tokens")
+        if exp_prompt is not None:
+            exp_p_int = int(exp_prompt)
+            diff = abs(actual_prompt_tokens - exp_p_int)
+            checks.append({
+                "metric": "Prompt Tokens",
+                "expected": str(exp_p_int),
+                "actual": str(actual_prompt_tokens),
+                "discrepancy": str(diff),
+                "status": "MATCH" if diff == 0 else "MISMATCH"
+            })
+
+        # 5. Completion Tokens Aliases
+        exp_comp = expected_data.get("completion_tokens") or expected_data.get("total_completion_tokens")
+        if exp_comp is not None:
+            exp_c_int = int(exp_comp)
+            diff = abs(actual_completion_tokens - exp_c_int)
+            checks.append({
+                "metric": "Completion Tokens",
+                "expected": str(exp_c_int),
+                "actual": str(actual_completion_tokens),
+                "discrepancy": str(diff),
+                "status": "MATCH" if diff == 0 else "MISMATCH"
+            })
+
+        # 6. By Team Breakdown Aliases
+        exp_by_team = expected_data.get("by_team") or expected_data.get("teams") or expected_data.get("team_breakdown")
+        if isinstance(exp_by_team, dict):
+            for t_name, t_val in exp_by_team.items():
+                t_exp = Decimal(str(t_val))
+                t_act = team_dict.get(t_name, Decimal(0))
+                t_diff = abs(t_act - t_exp)
+                checks.append({
+                    "metric": f"Team Spend Attribution: {t_name}",
+                    "expected": f"${t_exp:.8f}",
+                    "actual": f"${t_act:.8f}",
+                    "discrepancy": f"${t_diff:.8f}",
+                    "status": "MATCH" if t_diff == Decimal(0) else "MISMATCH"
+                })
+
+        # 7. By Feature Breakdown Aliases
+        exp_by_feature = expected_data.get("by_feature") or expected_data.get("features") or expected_data.get("feature_breakdown")
+        if isinstance(exp_by_feature, dict):
+            for f_name, f_val in exp_by_feature.items():
+                f_exp = Decimal(str(f_val))
+                f_act = feature_dict.get(f_name, Decimal(0))
+                f_diff = abs(f_act - f_exp)
+                checks.append({
+                    "metric": f"Feature Spend Attribution: {f_name}",
+                    "expected": f"${f_exp:.8f}",
+                    "actual": f"${f_act:.8f}",
+                    "discrepancy": f"${f_diff:.8f}",
+                    "status": "MATCH" if f_diff == Decimal(0) else "MISMATCH"
+                })
+
+        # 8. By Model Breakdown Aliases
+        exp_by_model = expected_data.get("by_model") or expected_data.get("models") or expected_data.get("model_breakdown")
+        if isinstance(exp_by_model, dict):
+            for m_name, m_val in exp_by_model.items():
+                m_exp = Decimal(str(m_val))
+                m_act = model_dict.get(m_name, Decimal(0))
+                m_diff = abs(m_act - m_exp)
+                checks.append({
+                    "metric": f"Model Spend Attribution: {m_name}",
+                    "expected": f"${m_exp:.8f}",
+                    "actual": f"${m_act:.8f}",
+                    "discrepancy": f"${m_diff:.8f}",
+                    "status": "MATCH" if m_diff == Decimal(0) else "MISMATCH"
+                })
+
+        # Strict validation: If no recognized keys are found, NEVER return MATCH
+        if len(checks) == 0:
+            return {
+                "status": "NO_CHECKS",
+                "reconciliation_verdict": "NO_CHECKS",
+                "message": "The supplied expected-values document contains no recognized verification keys.",
+                "checks": [],
+                "actual_ledger_summary": summary
+            }
+
+        all_passed = all(c["status"] == "MATCH" for c in checks)
+        mismatch_count = sum(1 for c in checks if c["status"] == "MISMATCH")
+        discrepancy_rate = round((mismatch_count / len(checks)) * 100, 2)
+
+        return {
+            "status": "SUCCESS",
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "audit_type": "Real Ledger vs Supplied Expected Values Validation",
+            "total_checks": len(checks),
+            "reconciliation_verdict": "PASSED (100% Match against Expected Values)" if all_passed else "FAILED (Discrepancy Detected)",
+            "discrepancy_rate_pct": discrepancy_rate,
+            "checks": checks,
+            "actual_ledger_summary": summary
         }

@@ -13,7 +13,7 @@ import asyncio
 import json
 import httpx
 from decimal import Decimal
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 import os
 from fastapi import FastAPI, Request, HTTPException, Depends, Header, BackgroundTasks, Query, UploadFile, File
@@ -119,6 +119,58 @@ async def health_check():
         }
     }
 
+def extract_attribution(
+    body: Dict[str, Any],
+    x_team: Optional[str] = None,
+    x_feature: Optional[str] = None,
+    x_user_id: Optional[str] = None,
+    x_env: Optional[str] = None
+) -> Tuple[str, str, str, str, str]:
+    """
+    Extracts multi-tenant attribution from body (attribution/metadata/x_attribution/root) or headers.
+    Untagged requests strictly default to 'Unattributed' (never Engineering/General/corp_user_01).
+    Returns: (team, feature, user_id, environment, attribution_status)
+    Where attribution_status is 'complete' (all 3 present), 'partial' (1-2 present), or 'unattributed' (0 present).
+    """
+    body_attrib = (
+        body.get("attribution") or 
+        body.get("metadata") or 
+        body.get("x_attribution") or 
+        {}
+    )
+    if not isinstance(body_attrib, dict):
+        body_attrib = {}
+
+    raw_team = body_attrib.get("team") or body.get("team") or x_team
+    raw_feature = body_attrib.get("feature") or body.get("feature") or x_feature
+    raw_user = (
+        body_attrib.get("user") or body_attrib.get("user_id") or
+        body.get("user") or body.get("user_id") or x_user_id
+    )
+    raw_env = body_attrib.get("environment") or body.get("environment") or x_env
+
+    def is_valid(val):
+        return bool(val and str(val).strip() and str(val).strip().lower() != "unattributed")
+
+    has_team = is_valid(raw_team)
+    has_feat = is_valid(raw_feature)
+    has_user = is_valid(raw_user)
+
+    present_count = sum([has_team, has_feat, has_user])
+    if present_count == 3:
+        status = "complete"
+    elif present_count > 0:
+        status = "partial"
+    else:
+        status = "unattributed"
+
+    team = str(raw_team).strip() if has_team else "Unattributed"
+    feature = str(raw_feature).strip() if has_feat else "Unattributed"
+    user_id = str(raw_user).strip() if has_user else "Unattributed"
+    env = str(raw_env).strip() if raw_env else "production"
+
+    return team, feature, user_id, env, status
+
 # ============================================================================
 # 1. CORE OBSERVABILITY PROXY WITH ATTRIBUTION METADATA PARSER
 # ============================================================================
@@ -140,12 +192,10 @@ async def chat_completions_proxy(
     except Exception:
         body = {}
 
-    # Extract Attribution Metadata (Priority: Body Attribution > Body Root > Header > Default)
-    body_attrib = body.get("attribution", {}) if isinstance(body.get("attribution"), dict) else {}
-    team = body_attrib.get("team") or body.get("team") or x_team or "Engineering"
-    feature = body_attrib.get("feature") or body.get("feature") or x_feature or "General"
-    user_id = body_attrib.get("user") or body.get("user_id") or x_user_id or "corp_user_01"
-    environment = body_attrib.get("environment") or body.get("environment") or x_env or "production"
+    # Strict Attribution: untagged requests default to "Unattributed"
+    team, feature, user_id, environment, attribution_status = extract_attribution(
+        body, x_team, x_feature, x_user_id, x_env
+    )
     
     model = body.get("model", "gpt-4o")
     messages = body.get("messages", [])
@@ -171,7 +221,7 @@ async def chat_completions_proxy(
         output_tokens = count_tokens(response_text)
 
         # Exact Decimal Cost Calculation (O(1) time and space)
-        in_cost, out_cost, total_cost, matched_model = pricing_engine.calculate_cost(
+        in_cost, out_cost, total_cost, matched_model, cost_status = pricing_engine.calculate_cost(
             model, input_tokens, output_tokens
         )
         
@@ -186,10 +236,13 @@ async def chat_completions_proxy(
             "feature": feature,
             "user": user_id,
             "environment": environment,
+            "attribution_status": attribution_status,
             "model": matched_model,
             "prompt_tokens": input_tokens,
             "completion_tokens": output_tokens,
             "total_tokens": input_tokens + output_tokens,
+            "token_source": "estimated",
+            "cost_status": cost_status,
             "input_cost_usd": float(in_cost),
             "output_cost_usd": float(out_cost),
             "total_cost_usd": float(total_cost),
@@ -287,7 +340,7 @@ async def chat_completions_proxy(
                             yield chunk
 
             output_tokens = max(1, total_chars // 14)
-            in_c, out_c, tot_c, matched_m = pricing_engine.calculate_cost(model, input_tokens, output_tokens)
+            in_c, out_c, tot_c, matched_m, cost_status = pricing_engine.calculate_cost(model, input_tokens, output_tokens)
             latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
             record = {
@@ -298,10 +351,13 @@ async def chat_completions_proxy(
                 "feature": feature,
                 "user": user_id,
                 "environment": environment,
+                "attribution_status": attribution_status,
                 "model": matched_m,
                 "prompt_tokens": input_tokens,
                 "completion_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens,
+                "token_source": "estimated",
+                "cost_status": cost_status,
                 "input_cost_usd": float(in_c),
                 "output_cost_usd": float(out_c),
                 "total_cost_usd": float(tot_c),
@@ -317,6 +373,111 @@ async def chat_completions_proxy(
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(live_streamer(), media_type="text/event-stream")
+
+
+# ============================================================================
+# 1B. ANTHROPIC MESSAGES API PROXY (Anthropic Protocol Support - Item 8)
+# ============================================================================
+@app.post("/v1/messages")
+async def anthropic_messages_proxy(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    x_team: Optional[str] = Header(None, alias="X-Team"),
+    x_feature: Optional[str] = Header(None, alias="X-Feature"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    x_env: Optional[str] = Header(None, alias="X-Environment")
+):
+    """
+    Transparent Anthropic Messages endpoint proxy (/v1/messages).
+    Returns Anthropic standard JSON structure with input_tokens/output_tokens in usage.
+    Logs FinOps attribution into active ledger.
+    """
+    start_time = time.perf_counter()
+    epoch_now = time.time()
+    msg_id = f"msg_{uuid.uuid4().hex[:14]}"
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    team, feature, user_id, environment, attribution_status = extract_attribution(
+        body, x_team, x_feature, x_user_id, x_env
+    )
+    model = body.get("model", "claude-3-5-sonnet")
+    messages = body.get("messages", [])
+    system_prompt = body.get("system", "")
+
+    # Count input tokens
+    input_tokens = count_messages_tokens(messages)
+    if system_prompt:
+        input_tokens += count_tokens(str(system_prompt))
+    if input_tokens == 0:
+        input_tokens = 25
+
+    # Simulated Anthropic response
+    simulated_reply = (
+        f"Krypton FinOps proxy operational for team '{team}'. "
+        f"Attributed to feature '{feature}' and user '{user_id}' with exact Decimal accounting."
+    )
+    output_tokens = count_tokens(simulated_reply)
+
+    in_c, out_c, tot_c, matched_m, cost_status = pricing_engine.calculate_cost(
+        model, input_tokens, output_tokens
+    )
+    latency_ms = round((time.perf_counter() - start_time) * 1000 + settings.SIMULATED_LATENCY_MS, 2)
+
+    record = {
+        "id": msg_id,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(epoch_now)),
+        "timestamp_epoch": epoch_now,
+        "team": team,
+        "feature": feature,
+        "user": user_id,
+        "environment": environment,
+        "attribution_status": attribution_status,
+        "model": matched_m,
+        "prompt_tokens": input_tokens,
+        "completion_tokens": output_tokens,
+        "total_tokens": input_tokens + output_tokens,
+        "token_source": "estimated",
+        "cost_status": cost_status,
+        "input_cost_usd": float(in_c),
+        "output_cost_usd": float(out_c),
+        "total_cost_usd": float(tot_c),
+        "total_cost_usd_exact": str(tot_c),
+        "latency_ms": latency_ms,
+        "provider_mode": "anthropic",
+        "status_code": 200
+    }
+    background_tasks.add_task(save_usage_record, record)
+
+    return JSONResponse(content={
+        "id": msg_id,
+        "type": "message",
+        "role": "assistant",
+        "model": matched_m,
+        "content": [
+            {
+                "type": "text",
+                "text": simulated_reply
+            }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": None,
+        "usage": {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens
+        },
+        "attribution": {
+            "team": team,
+            "feature": feature,
+            "user": user_id,
+            "status": attribution_status,
+            "cost_status": cost_status,
+            "cost_usd": str(tot_c)
+        }
+    })
 
 
 # ============================================================================
@@ -369,6 +530,31 @@ async def run_reconciliation_audit():
     report = await FinOpsValidator.run_audit_suite()
     return report
 
+@app.post("/api/finops/validate/upload")
+async def validate_expected_values_upload(
+    request: Request,
+    file: Optional[UploadFile] = File(None)
+):
+    """
+    Validates ACTUAL aggregated ledger totals against user-supplied expected values JSON.
+    Accepts either multipart file upload (.json) or direct JSON payload.
+    Never compares engine against itself.
+    """
+    expected_data = {}
+    if file is not None:
+        try:
+            content = await file.read()
+            expected_data = json.loads(content.decode("utf-8"))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+    else:
+        try:
+            expected_data = await request.json()
+        except Exception:
+            expected_data = {}
+
+    return await FinOpsValidator.validate_against_expected(expected_data)
+
 @app.post("/api/finops/simulate-traffic")
 async def simulate_traffic_burst(count: int = Query(5, ge=1, le=50)):
     """Generates synthetic enterprise requests across multiple teams and models."""
@@ -382,7 +568,7 @@ async def simulate_traffic_burst(count: int = Query(5, ge=1, le=50)):
 
     for i in range(count):
         team, feat, user, model, in_tok, out_tok = sample_scenarios[i % len(sample_scenarios)]
-        in_c, out_c, tot_c, matched_m = pricing_engine.calculate_cost(model, in_tok, out_tok)
+        in_c, out_c, tot_c, matched_m, cost_status = pricing_engine.calculate_cost(model, in_tok, out_tok)
         now = time.time()
         record = {
             "id": f"sim_{uuid.uuid4().hex[:8]}",
@@ -392,10 +578,13 @@ async def simulate_traffic_burst(count: int = Query(5, ge=1, le=50)):
             "feature": feat,
             "user": user,
             "environment": "production",
+            "attribution_status": "complete",
             "model": matched_m,
             "prompt_tokens": in_tok,
             "completion_tokens": out_tok,
             "total_tokens": in_tok + out_tok,
+            "token_source": "estimated",
+            "cost_status": cost_status,
             "input_cost_usd": float(in_c),
             "output_cost_usd": float(out_c),
             "total_cost_usd": float(tot_c),
@@ -425,7 +614,7 @@ async def upload_and_analyze_dataset(
     """Uploads and analyzes a synthetic or production FinOps dataset (.zip, .csv, .jsonl, .json)."""
     try:
         content = await file.read()
-        result = DatasetAnalysisEngine.process_dataset(
+        result = await DatasetAnalysisEngine.process_dataset(
             file_bytes=content,
             filename=file.filename,
             currency=currency,
@@ -488,5 +677,10 @@ async def get_company_analytics(currency: str = Query("USD")):
         "active_tenants": len(breakdown),
         "blocked_tenants": 0,
         "currency_symbol": summary["currency_symbol"],
+        "attribution_confidence_pct": summary.get("attribution_confidence_pct", 0.0),
+        "complete_attribution_count": summary.get("complete_attribution_count", 0),
+        "unattributed_cost_usd": summary.get("unattributed_cost_usd", 0.0),
+        "unattributed_cost_pct": summary.get("unattributed_cost_pct", 0.0),
+        "estimated_cost_pct": summary.get("estimated_cost_pct", 0.0),
         "tenants": breakdown
     }

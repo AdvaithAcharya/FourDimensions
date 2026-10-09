@@ -41,19 +41,22 @@ function Ticker() {
 function App() {
   const [summary, setSummary] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [dbHealth, setDbHealth] = useState(null);
   const [currency, setCurrency] = useState('USD');
   const [currentView, setCurrentView] = useState('dashboard');
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
-      const [sumRes, logsRes] = await Promise.all([
+      const [sumRes, logsRes, healthRes] = await Promise.all([
         fetch(`http://127.0.0.1:8000/api/finops/summary?currency=${currency}`),
-        fetch(`http://127.0.0.1:8000/api/finops/logs?limit=50&currency=${currency}`)
+        fetch(`http://127.0.0.1:8000/api/finops/logs?limit=50&currency=${currency}`),
+        fetch('http://127.0.0.1:8000/api/health')
       ]);
 
       if (sumRes.ok) setSummary(await sumRes.json());
       if (logsRes.ok) setLogs(await logsRes.json());
+      if (healthRes.ok) setDbHealth(await healthRes.json());
     } catch (e) {
       console.error("FinOps dashboard fetch error:", e);
     }
@@ -135,10 +138,17 @@ function App() {
                 Simulated Provider Interface Ready
               </span>
               <span className="text-gray-600">·</span>
-              <span className="text-cyan-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                MongoDB Atlas Connected (Cluster1)
-              </span>
+              {dbHealth?.database?.connected ? (
+                <span className="text-cyan-400 flex items-center gap-1.5" title="Live MongoDB Atlas Connection Active">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  MongoDB Atlas Connected ({dbHealth.database.cluster || 'Cluster1'})
+                </span>
+              ) : (
+                <span className="text-amber-400 flex items-center gap-1.5" title="Operating with In-Memory Resilient Store">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  In-Memory Store (Atlas Disconnected)
+                </span>
+              )}
               <span className="text-gray-600">·</span>
               <span className="text-gray-400">
                 Tiktoken Tokenizer Active
@@ -162,7 +172,7 @@ function App() {
                 <FinOpsChartsGrid currency={currency} refreshSignal={refreshSignal} />
               </div>
               <div className="animate-fade-up" style={{ animationDelay: '200ms' }}>
-                <UsageAuditTable logs={logs} />
+                <UsageAuditTable logs={logs} summary={summary} />
               </div>
             </>
           )}

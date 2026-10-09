@@ -260,8 +260,33 @@ Krypton includes a high-performance offline and batch telemetry ingestion engine
 5. **Attribution Coverage Matrix**:
    - Tracks **Complete** (all 3 dimensions present), **Partial** (1 or 2 dimensions present), and **Unattributed** traffic.
 6. **Live Ledger Import Toggle**:
-   - Optional checkbox to merge the uploaded dataset into the live interactive dashboard ledger and audit log.
+   - Optional checkbox to merge the uploaded dataset into the live interactive dashboard ledger and MongoDB Atlas without truncation caps.
+7. **Robustness & Quarantine**:
+   - Corrupted rows are isolated in a quarantine list with exact reasons without failing the overall upload.
 
-### API Endpoints:
-- `POST /api/finops/dataset/upload` (Multipart file upload with query params `currency` and `commit`)
-# FourDimensions
+### Multi-Provider Inbound Interfaces:
+- **OpenAI Compatible**: `POST /v1/chat/completions` (OpenAI format requests & streaming)
+- **Anthropic Messages**: `POST /v1/messages` (Anthropic format with `input_tokens` and `output_tokens` in `usage`)
+
+### Ground-Truth Validation API:
+- `POST /api/finops/validate/upload`: Validates actual aggregated ledger totals against organizer-supplied expected values JSON. Returns `MATCH`, `MISMATCH` with exact delta, or `NO_CHECKS` if no keys match.
+- `POST /api/finops/validate`: Executes internal deterministic pricing engine self-test and complexity benchmarks.
+
+---
+
+## 🧪 Automated Pytest Test Suite
+
+Execute the comprehensive test suite covering attribution, pricing table resolution, dataset calculation, proxy endpoints, and validator:
+
+```bash
+pytest backend/tests/ -v
+```
+
+All 20 tests verify:
+- Untagged requests strictly default to `"Unattributed"` with attribution status tracking.
+- Longest-prefix model matching (`gpt-4o-mini-2024-07-18` $\rightarrow$ `gpt-4o-mini`).
+- Unknown models charged at $0 with `unpriced_model` status.
+- Pricing engine calculation fidelity from external `pricing.json` / `pricing.csv`.
+- Robust dataset loading with alias resolution and corrupted row quarantine.
+- Dual-provider coverage (OpenAI + Anthropic).
+- Ground-truth validation reporting mismatch upon adversarial delta injection.

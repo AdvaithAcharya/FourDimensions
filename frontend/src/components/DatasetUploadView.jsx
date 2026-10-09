@@ -271,6 +271,46 @@ export default function DatasetUploadView({ currency = 'USD', onCommitSuccess, r
             </div>
           </div>
 
+          {/* Robustness Isolation: Rejected Rows Display */}
+          {result.rejected_count > 0 && (
+            <div className="glass-panel p-5 rounded-xl border border-amber-500/30 bg-amber-500/5 animate-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <AlertCircle size={18} />
+                  <h4 className="font-display font-bold text-base">
+                    Robustness Isolation: {result.rejected_count} Malformed Records Quarantined
+                  </h4>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono text-xs w-fit">
+                  Valid Ingested: {result.total_records?.toLocaleString()}
+                </span>
+              </div>
+              <p className="text-gray-400 font-mono text-xs mb-3">
+                Corrupted rows (e.g. invalid numbers, malformed tokens) did not halt the upload. Quarantined records are isolated below:
+              </p>
+              <div className="overflow-x-auto max-h-48 rounded-lg border border-white/5 bg-black/50">
+                <table className="w-full text-left font-mono text-xs">
+                  <thead className="bg-black/60 text-gray-400 uppercase text-[10px]">
+                    <tr>
+                      <th className="px-4 py-2">Row #</th>
+                      <th className="px-4 py-2">Quarantine Reason</th>
+                      <th className="px-4 py-2">Row Snippet</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-gray-300">
+                    {result.rejected_samples?.map((rej, i) => (
+                      <tr key={i} className="hover:bg-white/5">
+                        <td className="px-4 py-2 text-amber-400 font-bold whitespace-nowrap">Row {rej.row_index}</td>
+                        <td className="px-4 py-2 text-red-400 font-medium">{rej.reason}</td>
+                        <td className="px-4 py-2 text-gray-400 truncate max-w-sm">{rej.row_preview}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* 4-Dimensional Breakdowns Tabs */}
           <div className="glass-panel rounded-xl overflow-hidden border border-white/10">
             {/* Tabs Header */}

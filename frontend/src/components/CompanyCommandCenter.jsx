@@ -67,8 +67,14 @@ export default function CompanyCommandCenter({ currency = 'USD', refreshSignal =
           <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/20 blur-xl rounded-full" />
           <p className="text-gray-400 font-mono text-[10px] uppercase tracking-widest mb-1">Attribution Confidence</p>
           <div className="flex items-center gap-2">
-            <h4 className="font-display text-2xl font-bold text-purple-400">{isZero ? '0.0%' : '100.0%'}</h4>
-            <span className="text-[10px] font-mono text-gray-500">{isZero ? '0 records logged' : 'Exact Ledger'}</span>
+            <h4 className="font-display text-2xl font-bold text-purple-400">
+              {data.attribution_confidence_pct != null ? `${Number(data.attribution_confidence_pct).toFixed(1)}%` : '0.0%'}
+            </h4>
+            <span className="text-[10px] font-mono text-gray-500">
+              {data.unattributed_cost_usd > 0
+                ? `${data.unattributed_cost_pct}% Unattributed`
+                : (isZero ? '0 records' : 'Complete 3-Dim')}
+            </span>
           </div>
         </div>
       </div>

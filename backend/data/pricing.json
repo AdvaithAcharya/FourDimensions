@@ -1,0 +1,74 @@
+{
+  "gpt-4o": {
+    "input_cost_per_1m": "2.50",
+    "output_cost_per_1m": "10.00",
+    "unit": "1m",
+    "description": "OpenAI Flagship Multimodal"
+  },
+  "gpt-4o-mini": {
+    "input_cost_per_1m": "0.15",
+    "output_cost_per_1m": "0.60",
+    "unit": "1m",
+    "description": "OpenAI High-Speed Lightweight"
+  },
+  "claude-3-5-sonnet": {
+    "input_cost_per_1m": "3.00",
+    "output_cost_per_1m": "15.00",
+    "unit": "1m",
+    "description": "Anthropic Frontier Reasoning"
+  },
+  "claude-3-5-haiku": {
+    "input_cost_per_1m": "0.80",
+    "output_cost_per_1m": "4.00",
+    "unit": "1m",
+    "description": "Anthropic High-Speed Reasoning"
+  },
+  "claude-3-7-sonnet": {
+    "input_cost_per_1m": "3.00",
+    "output_cost_per_1m": "15.00",
+    "unit": "1m",
+    "description": "Anthropic Hybrid Reasoning"
+  },
+  "gemini-1.5-flash": {
+    "input_cost_per_1m": "0.075",
+    "output_cost_per_1m": "0.30",
+    "unit": "1m",
+    "description": "Google High-Volume Efficiency"
+  },
+  "gemini-1.5-pro": {
+    "input_cost_per_1m": "1.25",
+    "output_cost_per_1m": "5.00",
+    "unit": "1m",
+    "description": "Google Deep Context & Reasoning"
+  },
+  "gemini-2.0-flash": {
+    "input_cost_per_1m": "0.10",
+    "output_cost_per_1m": "0.40",
+    "unit": "1m",
+    "description": "Google Next-Gen Flash"
+  },
+  "gemini-2.5-pro": {
+    "input_cost_per_1m": "1.25",
+    "output_cost_per_1m": "10.00",
+    "unit": "1m",
+    "description": "Google Next-Gen Reasoning"
+  },
+  "llama-3-70b": {
+    "input_cost_per_1m": "0.80",
+    "output_cost_per_1m": "0.80",
+    "unit": "1m",
+    "description": "Meta Open Weights Hosted"
+  },
+  "llama-3.3-70b": {
+    "input_cost_per_1m": "0.60",
+    "output_cost_per_1m": "0.60",
+    "unit": "1m",
+    "description": "Meta Llama 3.3 Flagship"
+  },
+  "mistral-small": {
+    "input_cost_per_1m": "0.10",
+    "output_cost_per_1m": "0.30",
+    "unit": "1m",
+    "description": "Mistral Small Lightweight"
+  }
+}

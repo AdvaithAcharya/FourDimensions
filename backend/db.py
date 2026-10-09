@@ -52,10 +52,8 @@ async def save_usage_record(record: Dict[str, Any]):
     # Ensure _id is never kept in the in-memory object
     record.pop("_id", None)
 
-    # Insert at top of in-memory list (bounded at 5000 items)
+    # Insert at top of in-memory list (unbounded to preserve all records for accurate audit)
     in_memory_logs.insert(0, record)
-    if len(in_memory_logs) > 5000:
-        in_memory_logs.pop()
 
     if db is not None:
         try:
@@ -63,6 +61,22 @@ async def save_usage_record(record: Dict[str, Any]):
             await db.usage_logs.insert_one(doc_to_save)
         except Exception as e:
             logger.warning(f"Mongo insert failed: {e}")
+
+async def save_bulk_usage_records(records: List[Dict[str, Any]]):
+    """Bulk inserts usage records into memory and MongoDB Atlas without truncation."""
+    global in_memory_logs
+    if not records:
+        return
+    for r in records:
+        r.pop("_id", None)
+        in_memory_logs.append(r)
+    if db is not None:
+        try:
+            docs = [r.copy() for r in records]
+            await db.usage_logs.insert_many(docs)
+            logger.info(f"Persisted {len(docs)} bulk records to MongoDB Atlas 'usage_logs'.")
+        except Exception as e:
+            logger.warning(f"Mongo bulk insert failed: {e}")
 
 async def get_recent_usage_logs(
     limit: int = 50,
@@ -145,6 +159,22 @@ async def get_finops_summary(currency: str = "USD") -> Dict[str, Any]:
     converted_total = currency_service.convert_from_usd(float_total_cost, curr)
     avg_cost_req = converted_total / total_requests if total_requests > 0 else 0.0
 
+    # Estimated vs Reported Token KPI (P1 requirement)
+    estimated_tokens_count = sum(r.get("total_tokens", 0) for r in in_memory_logs if r.get("token_source") == "estimated")
+    estimated_cost_usd = sum(Decimal(str(r.get("total_cost_usd", 0))) for r in in_memory_logs if r.get("token_source") == "estimated")
+    estimated_cost_pct = float((estimated_cost_usd / total_cost_usd) * Decimal(100)) if total_cost_usd > 0 else 0.0
+
+    # Unattributed Spend KPI (P0 requirement)
+    unattributed_cost_usd = sum(Decimal(str(r.get("total_cost_usd", 0))) for r in in_memory_logs if r.get("team") == "Unattributed")
+    unattributed_cost_pct = float((unattributed_cost_usd / total_cost_usd) * Decimal(100)) if total_cost_usd > 0 else 0.0
+
+    # Unpriced Models Count (P0 requirement)
+    unpriced_count = sum(1 for r in in_memory_logs if r.get("cost_status") == "unpriced_model")
+
+    # Attribution Confidence: percentage of requests with complete attribution (all 3 dimensions present)
+    complete_count = sum(1 for r in in_memory_logs if r.get("attribution_status") == "complete")
+    attribution_confidence_pct = round((complete_count / total_requests * 100), 1) if total_requests > 0 else 0.0
+
     return {
         "total_cost_usd": round(float_total_cost, 6),
         "total_cost_formatted": f"{symbol}{converted_total:,.4f}" if curr != "JPY" else f"{symbol}{int(converted_total):,}",
@@ -157,6 +187,14 @@ async def get_finops_summary(currency: str = "USD") -> Dict[str, Any]:
         "top_team": top_team,
         "top_feature": top_feature,
         "top_model": top_model,
+        "estimated_tokens_count": estimated_tokens_count,
+        "estimated_cost_usd": float(estimated_cost_usd),
+        "estimated_cost_pct": round(estimated_cost_pct, 2),
+        "unattributed_cost_usd": float(unattributed_cost_usd),
+        "unattributed_cost_pct": round(unattributed_cost_pct, 2),
+        "attribution_confidence_pct": attribution_confidence_pct,
+        "complete_attribution_count": complete_count,
+        "unpriced_requests_count": unpriced_count,
         "selected_currency": curr,
         "currency_symbol": symbol
     }
