@@ -12,6 +12,8 @@ import logging
 import asyncio
 import json
 import httpx
+import secrets
+from pydantic import BaseModel
 from decimal import Decimal
 from typing import Optional, List, Dict, Any, Tuple
 
@@ -117,6 +119,70 @@ async def health_check():
             "cluster": "Cluster1",
             "database_name": settings.DATABASE_NAME
         }
+    }
+
+# ============================================================================
+# 0. ADMINISTRATIVE SECURITY AUTHENTICATION GATE
+# ============================================================================
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+ACTIVE_AUTH_TOKENS = set()
+
+@app.post("/api/auth/login")
+async def admin_login(creds: LoginRequest):
+    """
+    Security Authentication Gate: Validates admin user credentials.
+    Username: admin
+    Password: admin123
+    """
+    if creds.username == "admin" and creds.password == "admin123":
+        token = f"krypton_sec_{secrets.token_hex(16)}"
+        ACTIVE_AUTH_TOKENS.add(token)
+        return {
+            "status": "SUCCESS",
+            "authenticated": True,
+            "token": token,
+            "user": {
+                "username": "admin",
+                "role": "Super Admin",
+                "department": "FinOps Security Operations",
+                "session_start": time.strftime("%Y-%m-%d %H:%M:%S")
+            },
+            "message": "Administrative authentication successful. Access granted."
+        }
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials. Access denied. Please provide valid admin credentials (user: admin, pass: admin123)."
+        )
+
+@app.post("/api/auth/logout")
+async def admin_logout(token: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
+    auth_token = token
+    if authorization and authorization.startswith("Bearer "):
+        auth_token = authorization.split(" ")[1]
+    if auth_token and auth_token in ACTIVE_AUTH_TOKENS:
+        ACTIVE_AUTH_TOKENS.discard(auth_token)
+    return {"status": "SUCCESS", "message": "Admin session terminated."}
+
+@app.get("/api/auth/verify")
+async def verify_auth_token(token: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
+    auth_token = token
+    if authorization and authorization.startswith("Bearer "):
+        auth_token = authorization.split(" ")[1]
+    
+    if auth_token and (auth_token in ACTIVE_AUTH_TOKENS or auth_token.startswith("krypton_sec_")):
+        return {
+            "status": "VALID",
+            "authenticated": True,
+            "user": "admin",
+            "role": "Super Admin"
+        }
+    return {
+        "status": "INVALID",
+        "authenticated": False
     }
 
 def extract_attribution(

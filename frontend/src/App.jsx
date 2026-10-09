@@ -9,6 +9,7 @@ import ValidationModal from './components/ValidationModal';
 import DatasetUploadView from './components/DatasetUploadView';
 import ParticleField from './components/ParticleField';
 import CursorGlow from './components/CursorGlow';
+import LoginPage from './components/LoginPage';
 import { ShieldCheck, Sparkles } from 'lucide-react';
 
 const TICKER_ITEMS = [
@@ -39,6 +40,7 @@ function Ticker() {
 }
 
 function App() {
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('krypton_auth_token') || null);
   const [summary, setSummary] = useState(null);
   const [logs, setLogs] = useState([]);
   const [dbHealth, setDbHealth] = useState(null);
@@ -46,7 +48,14 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [refreshSignal, setRefreshSignal] = useState(0);
 
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('krypton_auth_token');
+    localStorage.removeItem('krypton_auth_user');
+    setAuthToken(null);
+  }, []);
+
   const fetchData = useCallback(async () => {
+    if (!authToken) return;
     try {
       const [sumRes, logsRes, healthRes] = await Promise.all([
         fetch(`http://127.0.0.1:8000/api/finops/summary?currency=${currency}`),
@@ -87,10 +96,15 @@ function App() {
   }, [currency, fetchData]);
 
   useEffect(() => {
+    if (!authToken) return;
     fetchData();
     const interval = setInterval(fetchData, 1500);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, authToken]);
+
+  if (!authToken) {
+    return <LoginPage onLoginSuccess={(data) => setAuthToken(data.token)} />;
+  }
 
   return (
     <div className="min-h-screen bg-amoled-black text-white selection:bg-ember/30 relative">
@@ -108,6 +122,7 @@ function App() {
         setCurrentView={setCurrentView}
         onRefresh={fetchData}
         onReset={handleReset}
+        onLogout={handleLogout}
       />
 
       <main className="relative z-10">

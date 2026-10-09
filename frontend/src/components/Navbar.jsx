@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Layers, Zap, Activity, RotateCcw } from 'lucide-react';
+import { Layers, Zap, Activity, RotateCcw, LogOut, Shield } from 'lucide-react';
 
 function MagneticButton({ children, className = '', onClick, ...rest }) {
   const ref = useRef(null);
@@ -31,7 +31,7 @@ function MagneticButton({ children, className = '', onClick, ...rest }) {
   );
 }
 
-export default function Navbar({ currency, setCurrency, currentView, setCurrentView, onRefresh, onReset }) {
+export default function Navbar({ currency, setCurrency, currentView, setCurrentView, onRefresh, onReset, onLogout }) {
   const [scrolled, setScrolled] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -197,6 +197,20 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
             </button>
           ))}
         </div>
+
+        {/* Admin Session Badge & Sign Out Button */}
+        {onLogout && (
+          <button
+            id="admin-logout-btn"
+            onClick={onLogout}
+            title="Sign out of Admin Session"
+            className="px-2.5 py-1.5 rounded-lg border border-white/10 bg-black/50 hover:bg-red-500/10 hover:border-red-500/30 text-gray-300 hover:text-red-400 font-mono text-xs flex items-center gap-1.5 transition-all duration-200 group"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="hidden sm:inline font-semibold text-gray-200">admin</span>
+            <LogOut size={13} className="text-gray-400 group-hover:text-red-400 transition-colors ml-0.5" />
+          </button>
+        )}
 
         <div className="hidden 2xl:flex items-center gap-1.5 text-gray-500 font-mono text-[10px] uppercase tracking-wider">
           <Activity size={12} className="text-ember animate-pulse" />
