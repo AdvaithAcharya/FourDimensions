@@ -57,16 +57,26 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      // 2. We use fetch to stream Server-Sent Events from Krypton Gateway
+      // 2. We use fetch to stream Server-Sent Events from Scryptic FinOps Gateway
       const response = await fetch("http://127.0.0.1:8000/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Team": "AI-Research",
+          "X-Feature": "Gemi-Interactive-Chat",
+          "X-User-ID": "gemi_client_01"
+        },
         body: JSON.stringify({
-          model: "gemini-3.5-flash",
+          model: "gemini-1.5-flash",
           messages: [...messages, newUserMsg],
           max_tokens: 2000,
           stream: true,
-          user_id: "gemi_client_01"
+          attribution: {
+            team: "AI-Research",
+            feature: "Gemi-Interactive-Chat",
+            user: "gemi_client_01",
+            environment: "staging"
+          }
         })
       });
 

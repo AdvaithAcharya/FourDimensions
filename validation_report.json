@@ -1,0 +1,74 @@
+{
+  "timestamp": "2026-10-10 02:18:51",
+  "audit_title": "Commvault PS-404 LLM FinOps Accuracy & Reconciliation Audit",
+  "fixtures_evaluated": 8,
+  "reconciliation_verdict": "PASSED (100% Exact Match)",
+  "error_rate_pct": 0.0,
+  "verification_latency_ms": 0.645,
+  "benchmarks": {
+    "calculation_time_complexity": "O(1) Constant Time",
+    "pricing_lookup_time_complexity": "O(1) Hash Table Lookup",
+    "throughput_1000_evals_ms": 8.554,
+    "evaluations_per_second": 116904.0,
+    "space_complexity": "O(1) Auxiliary Heap Memory per Request",
+    "arithmetic_precision": "Decimal (8-point fixed precision, 0 floating point drift)"
+  },
+  "comparisons": [
+    {
+      "metric": "Total Cost (USD)",
+      "expected": "$0.08077000",
+      "actual": "$0.08077000",
+      "discrepancy": "$0.00000000",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Prompt Tokens",
+      "expected": "24000",
+      "actual": "24000",
+      "discrepancy": "0",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Completion Tokens",
+      "expected": "6300",
+      "actual": "6300",
+      "discrepancy": "0",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Total Tokens Sum",
+      "expected": "30300",
+      "actual": "30300",
+      "discrepancy": "0",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Team Spend: Engineering",
+      "expected": "$0.00828000",
+      "actual": "$0.00828000",
+      "discrepancy": "$0.00000000",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Team Spend: Data-Science",
+      "expected": "$0.06000000",
+      "actual": "$0.06000000",
+      "discrepancy": "$0.00000000",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Team Spend: Customer-Support",
+      "expected": "$0.00042000",
+      "actual": "$0.00042000",
+      "discrepancy": "$0.00000000",
+      "status": "MATCH"
+    },
+    {
+      "metric": "Team Spend: Marketing",
+      "expected": "$0.01207000",
+      "actual": "$0.01207000",
+      "discrepancy": "$0.00000000",
+      "status": "MATCH"
+    }
+  ]
+}

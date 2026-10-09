@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ShieldAlert, DollarSign, Activity, Clock } from 'lucide-react';
+import { DollarSign, Flame, Clock, Users } from 'lucide-react';
 
 function TiltCard({ children, className = '' }) {
   const ref = useRef(null);
@@ -29,41 +29,46 @@ function TiltCard({ children, className = '' }) {
   );
 }
 
-export default function MetricsCards({ stats }) {
-  if (!stats) return null;
+export default function MetricsCards({ summary }) {
+  if (!summary) return null;
+
+  const totalRequests = summary.total_requests || 0;
+  const isZero = totalRequests === 0;
 
   const cards = [
     {
-      title: "Cost Saved (Pre-Flight)",
-      value: stats.total_cost_saved_formatted,
+      title: "Total LLM Spend",
+      value: summary.total_cost_formatted || "$0.00",
       icon: DollarSign,
       color: "text-ember",
       border: "glow-border-ember",
-      subtext: "Wallet Protection Active"
+      subtext: isZero
+        ? "0 requests logged · Zero Baseline"
+        : `Avg ${summary.avg_cost_per_request || '$0.00'}/req · Decimal Verified`
     },
     {
-      title: "Threats Blocked",
-      value: stats.blocked_threat_count,
-      icon: ShieldAlert,
-      color: "text-threat-red",
-      border: "glow-border-red",
-      subtext: "Tokens dropped: " + (stats.total_tokens_blocked || 0).toLocaleString()
+      title: "Total Tokens Processed",
+      value: (summary.total_tokens || 0).toLocaleString(),
+      icon: Flame,
+      color: "text-amber-400",
+      border: "border-amber-500/30",
+      subtext: `${(summary.total_prompt_tokens || 0).toLocaleString()} in / ${(summary.total_completion_tokens || 0).toLocaleString()} out`
     },
     {
-      title: "Legitimate Requests",
-      value: stats.total_requests,
-      icon: Activity,
+      title: "Top Cost Driver",
+      value: isZero ? "None (0 active)" : (summary.top_team && summary.top_team !== "N/A" ? summary.top_team : "None"),
+      icon: Users,
       color: "text-blue-400",
       border: "border-blue-500/30",
-      subtext: "Tokens served: " + (stats.total_tokens_processed || 0).toLocaleString()
+      subtext: isZero ? "0 requests logged · 0 active teams" : `Feature: ${summary.top_feature || 'General'}`
     },
     {
-      title: "Avg Gate Latency",
-      value: stats.avg_latency_ms + " ms",
+      title: "Mean Gateway Latency",
+      value: isZero ? "0 ms" : `${summary.avg_latency_ms || 0} ms`,
       icon: Clock,
-      color: "text-purple-400",
-      border: "border-purple-500/30",
-      subtext: "tiktoken ultra-fast check"
+      color: "text-emerald-400",
+      border: "border-emerald-500/30",
+      subtext: isZero ? "0 active models · Gateway Idle" : `Model Lead: ${summary.top_model || 'gpt-4o'}`
     }
   ];
 
@@ -71,7 +76,7 @@ export default function MetricsCards({ stats }) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {cards.map((card, idx) => (
         <TiltCard key={idx} className={`glass-panel p-6 rounded-xl border-l-4 ${card.border} group relative overflow-hidden`}>
-          <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-current opacity-[0.04] blur-2xl group-hover:opacity-[0.12] transition-opacity duration-500" style={{ color: card.color.includes('ember') ? '#e8602e' : card.color.includes('red') ? '#f43f5e' : card.color.includes('blue') ? '#60a5fa' : '#a78bfa' }} />
+          <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-current opacity-[0.04] blur-2xl group-hover:opacity-[0.12] transition-opacity duration-500" style={{ color: card.color.includes('ember') ? '#e8602e' : card.color.includes('amber') ? '#f59e0b' : card.color.includes('blue') ? '#60a5fa' : '#34d399' }} />
           <div className="flex justify-between items-start relative z-10">
             <div>
               <p className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2">{card.title}</p>

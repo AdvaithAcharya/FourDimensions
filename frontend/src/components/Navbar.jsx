@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Shield, Zap, Activity } from 'lucide-react';
+import { Layers, Zap, Activity, RotateCcw } from 'lucide-react';
 
 function MagneticButton({ children, className = '', onClick, ...rest }) {
   const ref = useRef(null);
@@ -31,10 +31,14 @@ function MagneticButton({ children, className = '', onClick, ...rest }) {
   );
 }
 
-export default function Navbar({ currency, setCurrency, currentView, setCurrentView }) {
+export default function Navbar({ currency, setCurrency, currentView, setCurrentView, onRefresh, onReset }) {
   const [scrolled, setScrolled] = useState(false);
-  const [pulse, setPulse] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
   const dashBtnRef = useRef(null);
+  const auditBtnRef = useRef(null);
+  const datasetBtnRef = useRef(null);
   const apiBtnRef = useRef(null);
   const pillRef = useRef(null);
 
@@ -45,31 +49,47 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
   }, []);
 
   useEffect(() => {
-    const target = currentView === 'dashboard' ? dashBtnRef.current : apiBtnRef.current;
+    let target = dashBtnRef.current;
+    if (currentView === 'audit') target = auditBtnRef.current;
+    if (currentView === 'dataset') target = datasetBtnRef.current;
+    if (currentView === 'api') target = apiBtnRef.current;
+
     if (target && pillRef.current) {
       pillRef.current.style.width = `${target.offsetWidth}px`;
       pillRef.current.style.left = `${target.offsetLeft}px`;
     }
   }, [currentView]);
 
-  const triggerAttack = async () => {
-    setPulse(true);
-    setTimeout(() => setPulse(false), 900);
+  const triggerSimulateTraffic = async () => {
+    setSimulating(true);
     try {
-      await fetch('http://127.0.0.1:8000/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: "INSTRUCTION: Explain quantum mechanics. " + ("repeat token burn payload " * 5000) }],
-          max_tokens: 4000,
-          user_id: "attacker_bot_01"
-        })
+      await fetch('http://127.0.0.1:8000/api/finops/simulate-traffic?count=5', {
+        method: 'POST'
       });
+      if (onRefresh) onRefresh();
     } catch (e) {
-      console.error("Attack simulation error", e);
+      console.error("Traffic simulation error", e);
+    } finally {
+      setTimeout(() => setSimulating(false), 700);
     }
   };
+
+  const triggerReset = async () => {
+    setResetting(true);
+    try {
+      await fetch('http://127.0.0.1:8000/api/finops/reset', {
+        method: 'POST'
+      });
+      if (onReset) onReset();
+      else if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error("Reset metrics error", e);
+    } finally {
+      setTimeout(() => setResetting(false), 500);
+    }
+  };
+
+
 
   return (
     <nav
@@ -84,25 +104,26 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
 
       <div className="flex items-center gap-4 group">
         <div className="relative">
-          <Shield className="text-ember w-8 h-8 relative z-10 transition-transform duration-500 group-hover:rotate-[360deg] group-hover:scale-110" />
+          <Layers className="text-ember w-8 h-8 relative z-10 transition-transform duration-500 group-hover:rotate-180 group-hover:scale-110" />
           <div className="absolute inset-0 bg-ember rounded-full blur-lg opacity-40 animate-glow-pulse" />
         </div>
         <div className="flex flex-col">
           <h1 className="font-display font-bold text-2xl tracking-[0.02em] leading-none bg-gradient-to-r from-white via-ember to-white bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-flow">
-            KRYPTON <span className="text-white/40">//</span> GATEWAY
+            SCRYPTIC <span className="text-white/40">//</span> FINOPS
           </h1>
-          <span className="text-ember text-xs font-mono uppercase tracking-widest mt-1 flex items-center gap-2">
+          <span className="text-emerald-400 text-xs font-mono uppercase tracking-widest mt-1 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ember opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-ember"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            System: Protected
+            Attribution Engine Active
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="relative flex items-center bg-black/40 border border-white/10 rounded-lg overflow-hidden mr-4 p-1">
+      <div className="flex items-center gap-4">
+        {/* Navigation Tabs */}
+        <div className="relative flex items-center bg-black/40 border border-white/10 rounded-lg overflow-hidden p-1">
           <div
             ref={pillRef}
             className="nav-pill absolute top-1 bottom-1 rounded-md bg-gradient-to-r from-ember/30 to-ember-deep/40 border border-ember/50 shadow-[0_0_12px_rgba(232,96,46,0.35)]"
@@ -115,25 +136,58 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
             Dashboard
           </button>
           <button
+            ref={auditBtnRef}
+            onClick={() => setCurrentView('audit')}
+            className={`relative z-10 px-4 py-1.5 font-mono text-sm transition-colors duration-300 rounded-md ${currentView === 'audit' ? 'text-ember' : 'text-gray-400 hover:text-white'}`}
+          >
+            Reconciliation Audit
+          </button>
+          <button
+            ref={datasetBtnRef}
+            onClick={() => setCurrentView('dataset')}
+            className={`relative z-10 px-4 py-1.5 font-mono text-sm transition-colors duration-300 rounded-md ${currentView === 'dataset' ? 'text-ember' : 'text-gray-400 hover:text-white'}`}
+          >
+            Dataset Ingestion
+          </button>
+          <button
             ref={apiBtnRef}
             onClick={() => setCurrentView('api')}
             className={`relative z-10 px-4 py-1.5 font-mono text-sm transition-colors duration-300 rounded-md ${currentView === 'api' ? 'text-ember' : 'text-gray-400 hover:text-white'}`}
           >
-            API Access
+            API Integration
           </button>
         </div>
 
-        <MagneticButton
-          onClick={triggerAttack}
-          className={`crazy-btn rounded shimmer-btn ${pulse ? 'scale-95' : ''}`}
-        >
-          <span className="crazy-btn-inner bg-threat-red/10 border border-threat-red/30 hover:bg-threat-red/20 text-threat-red font-mono text-xs px-4 py-2 uppercase tracking-wider flex items-center gap-2">
-            <Zap size={14} className={pulse ? 'animate-spin' : ''} /> Simulate Attack
-          </span>
-        </MagneticButton>
+        {/* Action Buttons: Reset to 0 & Simulate Traffic */}
+        <div className="flex items-center gap-2">
+          {/* Reset Button */}
+          <button
+            onClick={triggerReset}
+            disabled={resetting}
+            title="Reset all token, spend, and request counts to 0"
+            className="px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all duration-300 hover:border-red-500/50"
+          >
+            <RotateCcw size={13} className={resetting ? 'animate-spin' : ''} />
+            <span>{resetting ? 'Resetting...' : 'Reset to 0'}</span>
+          </button>
 
+
+
+          {/* Simulate Traffic Button */}
+          <MagneticButton
+            onClick={triggerSimulateTraffic}
+            className={`crazy-btn rounded shimmer-btn ${simulating ? 'scale-95' : ''}`}
+          >
+            <span className="crazy-btn-inner bg-ember/10 border border-ember/30 hover:bg-ember/20 text-ember font-mono text-xs px-3.5 py-1.5 uppercase tracking-wider flex items-center gap-2">
+              <Zap size={14} className={simulating ? 'animate-spin' : ''} />
+              {simulating ? 'Simulating...' : 'Simulate Traffic'}
+            </span>
+          </MagneticButton>
+        </div>
+
+        {/* Currency Selector */}
         <div className="flex items-center bg-black/40 border border-white/10 rounded overflow-hidden">
-          {['USD', 'INR', 'EUR'].map(curr => (
+          {['USD', 'INR', 'EUR', 'GBP'].map(curr => (
             <button
               key={curr}
               onClick={() => setCurrency(curr)}
@@ -144,7 +198,7 @@ export default function Navbar({ currency, setCurrency, currentView, setCurrentV
           ))}
         </div>
 
-        <div className="hidden lg:flex items-center gap-1.5 text-gray-500 font-mono text-[10px] uppercase tracking-wider">
+        <div className="hidden 2xl:flex items-center gap-1.5 text-gray-500 font-mono text-[10px] uppercase tracking-wider">
           <Activity size={12} className="text-ember animate-pulse" />
           Live
         </div>
